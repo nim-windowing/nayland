@@ -34,7 +34,7 @@ $ nimble add https://github.com/xTrayambak/nayland
 - [X] `wl_region`
 - [X] `wl_shm`
 - [X] `wl_buffer`
-- [ ] `wl_callback`
+- [X] `wl_callback`
 - [X] `wl_shm_pool`
 - [ ] `wl_data_offer`
 - [ ] `wl_data_source`

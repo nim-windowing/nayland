@@ -5,7 +5,7 @@
 #!fmt: off
 import pkg/nayland/bindings/libwayland,
        pkg/nayland/bindings/protocols/core,
-       pkg/nayland/types/protocols/core/buffer
+       pkg/nayland/types/protocols/core/[buffer, callback]
 #!fmt: on
 
 type
@@ -25,6 +25,9 @@ proc commit*(surface: Surface) =
 
 proc attach*(surface: Surface, buffer: Buffer, x, y: int32) =
   wl_surface_attach(surface.handle, buffer.handle, x, y)
+
+proc frame*(surface: Surface): Callback =
+  newCallback(wl_surface_frame(surface.handle))
 
 proc newSurface*(handle: ptr wl_surface): Surface =
   Surface(handle: handle)

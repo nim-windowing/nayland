@@ -28,6 +28,7 @@ type
   wl_seat* {.importc: "struct $1".} = object
   wl_output* {.importc: "struct $1".} = object
   wl_pointer* {.importc: "struct $1".} = object
+  wl_callback* {.importc: "struct $1".} = object
 
   wl_pointer_listener* {.importc: "struct $1".} = object
     enter*: proc(
@@ -61,6 +62,15 @@ type
       data: pointer, pntr: ptr wl_pointer, axis: uint32, direction: uint32
     ) {.cdecl.}
 
+  wl_callback_listener* {.importc: "struct $1".} = object
+    done*:
+      proc(data: pointer, callback: ptr wl_callback, callback_data: uint32) {.cdecl.}
+
+  wl_seat_listener* {.importc: "struct $1".} = object
+    capabilities*:
+      proc(data: pointer, seat: ptr wl_seat, capabilities: uint32) {.cdecl.}
+    name*: proc(data: pointer, seat: ptr wl_seat, name: cstring) {.cdecl.}
+
 {.push importc.}
 
 let
@@ -90,6 +100,7 @@ proc wl_surface_destroy*(surf: ptr wl_surface)
 proc wl_surface_damage*(surf: ptr wl_surface, x, y, w, h: int32)
 proc wl_surface_commit*(surf: ptr wl_surface)
 proc wl_surface_attach*(surf: ptr wl_surface, buffer: ptr wl_buffer, x, y: int32)
+proc wl_surface_frame*(surf: ptr wl_surface): ptr wl_callback
 
 proc wl_region_destroy*(r: ptr wl_region)
 proc wl_region_add*(r: ptr wl_region, x, y, w, h: int32)
@@ -122,6 +133,13 @@ proc wl_pointer_release*(p: ptr wl_pointer)
 
 proc wl_seat_get_pointer*(s: ptr wl_seat): ptr wl_pointer
 proc wl_seat_release*(s: ptr wl_seat)
+proc wl_seat_add_listener*(
+  s: ptr wl_seat, listener: ptr wl_seat_listener, data: pointer
+): int32
+
+proc wl_callback_add_listener*(
+  cb: ptr wl_callback, listener: ptr wl_callback_listener, data: pointer
+): int32
 
 # Core Wayland protocol interfaces
 let wl_compositor_interface*: wl_interface

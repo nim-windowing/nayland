@@ -2,7 +2,7 @@ import std/[tables, posix, options]
 import
   pkg/nayland/types/display,
   pkg/nayland/types/protocols/core/
-    [buffer, pointer, registry, seat, compositor, shm, shm_pool, surface],
+    [buffer, callback, pointer, registry, seat, compositor, shm, shm_pool, surface],
   pkg/nayland/bindings/protocols/[core, xdg_shell],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel]
 import pkg/pretty
@@ -93,5 +93,15 @@ surf.attach(get buff, 0, 0)
 surf.damage(0, 0, 32, 32)
 surf.commit()
 
+var x = new int
+
+surf.frame.listen(
+  cast[ptr int](x),
+  proc(v: pointer, data: uint32) =
+    echo "urf urf urf urf urf"
+  ,
+)
+commit surf
+
 while true:
-  disp.dispatch()
+  disp.roundtrip()
