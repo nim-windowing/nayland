@@ -6,7 +6,6 @@ import pkg/nayland/bindings/libwayland, pkg/nayland/bindings/protocols/core
 type
   CallbackObj = object
     handle: ptr wl_callback
-    listener: ptr wl_callback_listener
 
   CallbackCallback* =
     proc(callback: Callback, obj: pointer, callbackData: uint32) {.cdecl.}
@@ -23,32 +22,24 @@ type
 
   Callback* = ref CallbackObj
 
-proc listen*(callback: Callback, obj: pointer, cb: CallbackCallback) =
-  # what in the world is this....
-  if callback.listener == nil:
-    callback.listener =
-      cast[ptr wl_callback_listener](alloc(sizeof(wl_callback_listener)))
-
-  callback.listener.done = proc(
-      data: pointer, cb: ptr wl_callback, cbdata: uint32
-  ) {.cdecl.} =
+let listener = wl_callback_listener(
+  done: proc(data: pointer, cb: ptr wl_callback, cbdata: uint32) {.cdecl.} =
     let payload = cast[ptr CallbackPayloadObj](data)
     payload.cb(cast[Callback](payload.cbObj), payload.obj, cbdata)
+)
 
+proc listen*(callback: Callback, obj: pointer, cb: CallbackCallback) =
+  # what in the world is this....
   let payload = cast[ptr CallbackPayloadObj](alloc(sizeof(CallbackPayloadObj)))
 
   payload.cb = cb
   payload.cbObj = cast[ptr CallbackObj](callback)
   payload.obj = obj
 
-  discard wl_callback_add_listener(callback.handle, callback.listener, payload)
+  discard wl_callback_add_listener(callback.handle, listener.addr, payload)
 
 proc destroy*(callback: Callback) =
-  echo "doch " & $(callback.handle.isnil)
   wl_callback_destroy(callback.handle)
-
-proc implantListener*(source: Callback, dest: Callback) =
-  dest.listener = source.listener
 
 func newCallback*(handle: ptr wl_callback): Callback =
   Callback(handle: handle)
