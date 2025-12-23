@@ -103,7 +103,7 @@ type
       modsLocked: uint32,
       group: uint32,
     ) {.cdecl.}
-    repeatInfo*:
+    repeat_info*:
       proc(data: pointer, keyb: ptr wl_keyboard, rate: int32, delay: int32) {.cdecl.}
 
 {.push importc.}
@@ -167,6 +167,7 @@ proc wl_pointer_add_listener*(
 proc wl_pointer_release*(p: ptr wl_pointer)
 
 proc wl_seat_get_pointer*(s: ptr wl_seat): ptr wl_pointer
+proc wl_seat_get_keyboard*(s: ptr wl_seat): ptr wl_keyboard
 proc wl_seat_release*(s: ptr wl_seat)
 proc wl_seat_add_listener*(
   s: ptr wl_seat, listener: ptr wl_seat_listener, data: pointer
@@ -178,6 +179,7 @@ proc wl_callback_add_listener*(
 
 proc wl_callback_destroy*(cb: ptr wl_callback)
 
+proc wl_keyboard_release*(keyb: ptr wl_keyboard)
 proc wl_keyboard_add_listener*(
   keyb: ptr wl_keyboard, listener: ptr wl_keyboard_listener, data: pointer
 ): int32

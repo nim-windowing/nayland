@@ -1,8 +1,10 @@
 import std/[tables, posix, options]
 import
   pkg/nayland/types/display,
-  pkg/nayland/types/protocols/core/
-    [buffer, callback, pointer, registry, seat, compositor, shm, shm_pool, surface],
+  pkg/nayland/types/protocols/core/[
+    buffer, callback, compositor, keyboard, pointer, registry, seat, shm, shm_pool,
+    surface,
+  ],
   pkg/nayland/bindings/protocols/[core, xdg_shell],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel]
 import pkg/pretty
@@ -54,6 +56,37 @@ pointr.onAxis = proc(pntr: Pointer, time, axis: uint32, value: float) =
   echo "axis event, time=" & $time & "; axis=" & $axis & "; value=" & $value
 
 pointr.attachCallbacks()
+
+let keyb = get seatObj.getKeyboard()
+keyb.onKeymap = proc(keyb: Keyboard, fmt: uint32, fd: int32, size: uint32) =
+  echo "Compositor sent keymap (fmt=" & $fmt & "; fd=" & $fd & "; size=" & $size & ')'
+
+keyb.onEnter = proc(
+    keyb: Keyboard, serial: uint32, surface: Surface, keys: seq[uint32]
+) =
+  echo "User is now focusing on surface!!!"
+  echo keys
+
+keyb.onLeave = proc(keyb: Keyboard, serial: uint32, surface: Surface) =
+  echo "User is no longer focusing on surface"
+
+keyb.onKey = proc(
+    keyb: Keyboard, serial: uint32, time: uint32, key: uint32, state: uint32
+) =
+  echo "Key event (serial=" & $serial & "; time=" & $time & "; key=" & $key & "; state=" &
+    $state & ')'
+
+keyb.onModifiers = proc(
+    keyb: Keyboard,
+    serial: uint32,
+    modsDepressed, modsLatched, modsLocked, group: uint32,
+) =
+  discard
+
+keyb.onRepeatInfo = proc(keyb: Keyboard, rate, delay: int32) =
+  echo "Repeat info received (rate=" & $rate & "; delay=" & $delay & ')'
+
+keyb.attachCallbacks()
 
 let surf = comp.createSurface()
 disp.roundtrip()

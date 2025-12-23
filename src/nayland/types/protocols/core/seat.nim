@@ -3,7 +3,7 @@
 ## Copyright (C) 2025 Trayambak Rai (xtrayambak@disroot.org)
 import std/options
 import pkg/nayland/bindings/libwayland, pkg/nayland/bindings/protocols/core
-import pkg/nayland/types/protocols/core/pointer
+import pkg/nayland/types/protocols/core/[keyboard, pointer]
 
 type
   SeatObj = object
@@ -23,6 +23,13 @@ proc getPointer*(seat: Seat): Option[Pointer] =
     return none(Pointer)
 
   some(newPointer(handle))
+
+proc getKeyboard*(seat: Seat): Option[Keyboard] =
+  let handle = wl_seat_get_keyboard(seat.handle)
+  if handle == nil:
+    return none(Keyboard)
+
+  some(newKeyboard(handle))
 
 func initSeat*(handle: pointer): Seat =
   Seat(handle: cast[ptr wl_seat](handle))
