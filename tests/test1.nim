@@ -93,14 +93,17 @@ surf.attach(get buff, 0, 0)
 surf.damage(0, 0, 32, 32)
 surf.commit()
 
-var x = new int
+proc onFrameCb(callback: Callback, surf: pointer, data: uint32) =
+  echo "urf urf urf urf urf"
+  destroy callback
+  let surf = cast[Surface](surf)
+  surf.frame.listen(cast[pointer](surf), onFrameCb)
 
-surf.frame.listen(
-  cast[ptr int](x),
-  proc(v: pointer, data: uint32) =
-    echo "urf urf urf urf urf"
-  ,
-)
+  surf.attach(get buff, 0, 0)
+  surf.damage(0, 0, 32, 32)
+  surf.commit()
+
+surf.frame.listen(cast[pointer](surf), onFrameCb)
 commit surf
 
 while true:

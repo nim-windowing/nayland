@@ -141,6 +141,8 @@ proc wl_callback_add_listener*(
   cb: ptr wl_callback, listener: ptr wl_callback_listener, data: pointer
 ): int32
 
+proc wl_callback_destroy*(cb: ptr wl_callback)
+
 # Core Wayland protocol interfaces
 let wl_compositor_interface*: wl_interface
 let wl_shm_interface*: wl_interface
