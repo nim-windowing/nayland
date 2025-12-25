@@ -122,6 +122,14 @@ roundtrip disp
 toplevel.title = "Hello Nayland!"
 toplevel.appId = "xyz.xtrayambak.nayland"
 
+toplevel.onConfigure = proc(toplevel: XDGToplevel, width, height: int32) =
+  echo "Configure XDGToplevel; width=" & $width & ", height=" & $height
+
+toplevel.onClose = proc(toplevel: XDGToplevel) =
+  echo "User wants to close XDGToplevel"
+
+toplevel.attachCallbacks()
+
 surf.attach(get buff, 0, 0)
 surf.damage(0, 0, 32, 32)
 surf.commit()

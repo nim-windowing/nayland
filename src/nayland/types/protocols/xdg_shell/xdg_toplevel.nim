@@ -10,7 +10,52 @@ type
   XDGToplevelObj = object
     handle*: ptr xdg_toplevel
 
+    payload: ToplevelCallbacksPayload
+
+  XDGToplevelConfigureCallback* = proc(toplevel: XDGToplevel, width, height: int32)
+  XDGToplevelCloseCallback* = proc(toplevel: XDGToplevel)
+
+  ToplevelCallbacksPObj = object
+    obj*: XDGToplevel
+    configureCb*: XDGToplevelConfigureCallback
+    closeCb*: XDGToplevelCloseCallback
+
+  ToplevelCallbacksPayload = ref ToplevelCallbacksPObj
+
   XDGToplevel* = ref XDGToplevelObj
+
+let listener = xdg_toplevel_listener(
+  configure: proc(
+      data: pointer,
+      toplevel: ptr xdg_toplevel,
+      width, height: int32,
+      states: ptr wl_array,
+  ) {.cdecl.} =
+    let payload = cast[ptr ToplevelCallbacksPObj](data)
+    payload.configureCb(payload.obj, width, height),
+  close: proc(data: pointer, toplevel: ptr xdg_toplevel) {.cdecl.} =
+    let payload = cast[ptr ToplevelCallbacksPObj](data)
+    payload.closeCb(payload.obj),
+  configure_bounds: proc(
+      data: pointer, toplevel: ptr xdg_toplevel, width, height: int32
+  ) {.cdecl.} =
+    discard,
+  wm_capabilities: proc(
+      data: pointer, toplevel: ptr xdg_toplevel, capabilities: ptr wl_array
+  ) {.cdecl.} =
+    discard,
+)
+
+proc `onConfigure=`*(toplevel: XDGToplevel, callback: XDGToplevelConfigureCallback) =
+  toplevel.payload.configureCb = callback
+
+proc `onClose=`*(toplevel: XDGToplevel, callback: XDGToplevelCloseCallback) =
+  toplevel.payload.closeCb = callback
+
+proc attachCallbacks*(toplevel: XDGToplevel) =
+  discard xdg_toplevel_add_listener(
+    toplevel.handle, listener.addr, cast[ptr ToplevelCallbacksPObj](toplevel.payload)
+  )
 
 proc `title=`*(toplevel: XDGToplevel, title: string) =
   xdg_toplevel_set_title(toplevel.handle, title)
@@ -31,4 +76,4 @@ proc maximize*(toplevel: XDGToplevel) =
   xdg_toplevel_set_maximized(toplevel.handle)
 
 func newXDGToplevel*(handle: ptr xdg_toplevel): XDGToplevel =
-  XDGToplevel(handle: handle)
+  XDGToplevel(handle: handle, payload: ToplevelCallbacksPayload())
