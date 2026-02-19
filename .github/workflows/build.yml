@@ -1,0 +1,44 @@
+name: Build
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Nim
+      uses: iffy/install-nim@v5
+
+    - name: Install dependencies
+      run: |
+        nimble install https://github.com/xTrayambak/neo 
+
+    - name: Install Wayland compositor
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y weston
+
+    - name: Build
+      run: |
+        neo install
+
+    - name: Run Wayland test
+      run: |
+        set -euo pipefail
+        export XDG_RUNTIME_DIR=/tmp/xdg-runtime
+        mkdir -p "$XDG_RUNTIME_DIR"
+        chmod 700 "$XDG_RUNTIME_DIR"
+        weston --backend=headless-backend.so --socket=wayland-1 --idle-time=0 &
+        WESTON_PID=$!
+        trap "kill $WESTON_PID" EXIT
+        for _ in $(seq 1 50); do
+          if [ -S "$XDG_RUNTIME_DIR/wayland-1" ]; then
+            break
+          fi
+          sleep 0.1
+        done
+        WAYLAND_DISPLAY=wayland-1 nim c -r tests/test1.nim

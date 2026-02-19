@@ -99,7 +99,7 @@ keyb.attachCallbacks()
 let surf = comp.createSurface()
 disp.roundtrip()
 
-const poolsize = 32 * 32
+const poolsize = 32 * 32 * 4
 
 var MFD_CLOEXEC {.importc, header: "<sys/mman.h>".}: uint32
 proc memfd_create(
@@ -139,8 +139,12 @@ toplevel.appId = "xyz.xtrayambak.nayland"
 toplevel.onConfigure = proc(toplevel: XDGToplevel, width, height: int32) =
   echo "Configure XDGToplevel; width=" & $width & ", height=" & $height
 
+const maxFrames = 200
+var running = true
+var frameCount = 0
 toplevel.onClose = proc(toplevel: XDGToplevel) =
   echo "User wants to close XDGToplevel"
+  running = false
 
 toplevel.attachCallbacks()
 
@@ -156,6 +160,12 @@ surf.commit()
 
 proc onFrameCb(callback: Callback, surf: pointer, data: uint32) {.cdecl.} =
   let surf = cast[Surface](surf)
+  if not running:
+    return
+  inc frameCount
+  if frameCount >= maxFrames:
+    running = false
+    return
   surf.frame.listen(cast[pointer](surf), onFrameCb)
 
   surf.attach(get buff, 0, 0)
@@ -165,5 +175,5 @@ proc onFrameCb(callback: Callback, surf: pointer, data: uint32) {.cdecl.} =
 surf.frame.listen(cast[pointer](surf), onFrameCb)
 commit surf
 
-while true:
+while running:
   disp.roundtrip()
