@@ -3,7 +3,6 @@
 ## Copyright (C) 2025 Trayambak Rai (xtrayambak at disroot dot org)
 import std/[options, posix]
 import pkg/nayland/bindings/libwayland, pkg/nayland/types/event_queue
-import pkg/shakar
 
 type
   DisplayError* = object of IOError
@@ -41,8 +40,8 @@ proc connectDisplay*(
 ): Display {.sideEffect, raises: [CannotConnect].} =
   let disp = Display(
     handle: wl_display_connect(
-      if *name:
-        cstring(&name)
+      if isSome(name):
+        cstring(name.get())
       else:
         nil
     )

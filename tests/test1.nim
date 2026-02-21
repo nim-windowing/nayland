@@ -8,7 +8,6 @@ import
   pkg/nayland/bindings/protocols/[core, xdg_shell, fractional_scale_v1],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
   pkg/nayland/types/protocols/fractional_scale/prelude
-import pkg/pretty
 
 let disp = connectDisplay()
 let reg = initRegistry(disp)

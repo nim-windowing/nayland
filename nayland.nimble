@@ -10,5 +10,3 @@ srcDir = "src"
 
 requires "nim >= 2.2.0"
 
-requires "shakar >= 0.1.3"
-requires "pretty >= 0.2.0"
