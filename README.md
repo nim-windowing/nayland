@@ -10,16 +10,13 @@ It aims to make it easier to write Wayland clients in Nim.
 ## generating protocol wrappers
 `protocols/bindgen.nim` is your best friend for this. It can take in a `.xml` file, and integrate bindings for it inside `src/nayland/bindings/protocols/`, including private C code.
 
-# installation
-You can get Neo [here](https://github.com/xTrayambak/neo). I do not test the Nimble manifest, and I have no plans to provide support for it.
-
 ## Neo (recommended)
 Inside your project directory, run:
 ```
 $ neo add gh:xTrayambak/nayland
 ```
 
-## Nimble (NOT RECOMMENDED)
+## Nimble
 Inside your project directory, run:
 ```
 $ nimble add https://github.com/xTrayambak/nayland
@@ -42,7 +39,7 @@ $ nimble add https://github.com/xTrayambak/nayland
 - [ ] `wl_data_device_manager`
 - [X] `wl_seat`
 - [X] `wl_pointer`
-- [ ] `wl_keyboard`
+- [X] `wl_keyboard`
 - [ ] `wl_touch`
 - [ ] `wl_output`
 - [ ] `wl_subcompositor`
