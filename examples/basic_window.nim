@@ -3,7 +3,8 @@ import
   pkg/nayland/types/display,
   pkg/nayland/types/protocols/core/[compositor, registry, shm, shm_pool, surface],
   pkg/nayland/bindings/protocols/[core, xdg_shell, xdg_decoration_unstable_v1],
-  pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel]
+  pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
+  pkg/nayland/types/protocols/xdg_decoration/prelude
 
 const
   width = 320
@@ -26,9 +27,8 @@ let comp = initCompositor(
 )
 
 let shmIface = reg["wl_shm"]
-let shmObj = initShm(
-  reg.bindInterface(shmIface.name, wl_shm_interface.addr, shmIface.version)
-)
+let shmObj =
+  initShm(reg.bindInterface(shmIface.name, wl_shm_interface.addr, shmIface.version))
 
 let wmIface = reg["xdg_wm_base"]
 let wm = initWMBase(
@@ -56,14 +56,7 @@ if fd < 0:
 
 discard ftruncate(fd, Off(poolSize))
 
-let map = mmap(
-  nil,
-  poolSize,
-  PROT_READ or PROT_WRITE,
-  MAP_SHARED,
-  fd,
-  0,
-)
+let map = mmap(nil, poolSize, PROT_READ or PROT_WRITE, MAP_SHARED, fd, 0)
 if map == cast[pointer](-1):
   quit "mmap failed"
 
@@ -75,11 +68,7 @@ for i in 0 ..< pixelCount:
 
 let pool = get shmObj.createPool(fd, int32(poolSize))
 let buffer = get pool.createBuffer(
-  0,
-  int32(width),
-  int32(height),
-  int32(stride),
-  ShmFormat.ARGB8888,
+  0, int32(width), int32(height), int32(stride), ShmFormat.ARGB8888
 )
 
 var configured = false
@@ -93,28 +82,20 @@ xdgSurf.attachCallbacks()
 
 if "zxdg_decoration_manager_v1" in reg:
   let decoIface = reg["zxdg_decoration_manager_v1"]
-  let decoManager = cast[ptr zxdg_decoration_manager_v1](
+  let decoManager = initXDGDecorationManager(
     reg.bindInterface(
       decoIface.name, zxdg_decoration_manager_v1_interface.addr, decoIface.version
     )
   )
-  let decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
-    decoManager, toplevel.handle
-  )
+  let decoration = decoManager.getToplevelDecoration(toplevel)
   decorationReady = false
-  decorationListener.configure = proc(
-      data: pointer,
-      _: ptr zxdg_toplevel_decoration_v1,
-      mode: uint32,
-  ) {.cdecl.} =
-    let ready = cast[ptr bool](data)
-    ready[] = true
-  discard zxdg_toplevel_decoration_v1_add_listener(
-    decoration, decorationListener.addr, addr decorationReady
-  )
-  zxdg_toplevel_decoration_v1_set_mode(
-    decoration, cast[uint32](ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE)
-  )
+  decoration.onConfigure = proc(
+      decor: XDGToplevelDecoration, _: XDGToplevelDecorationMode
+  ) =
+    decorationReady = true
+  decoration.attachCallbacks()
+
+  decoration.setMode(XDGToplevelDecorationMode.ServerSide)
 
 surf.commit()
 

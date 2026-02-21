@@ -60,3 +60,7 @@ $ nimble add https://github.com/xTrayambak/nayland
 ## Fractional Scale V1
 - [X] `wp_fractional_scale_manager_v1`
 - [X] `wp_fractional_scale_v1`
+
+## XDG Decoration V1
+- [X] `zxdg_decoration_manager_v1`
+- [X] `zxdg_toplevel_decoration_v1`
