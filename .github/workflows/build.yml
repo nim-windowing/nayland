@@ -13,10 +13,6 @@ jobs:
     - name: Install Nim
       uses: iffy/install-nim@v5
 
-    - name: Install dependencies
-      run: |
-        nimble install https://github.com/xTrayambak/neo 
-
     - name: Install Wayland compositor
       run: |
         sudo apt-get update
@@ -24,7 +20,7 @@ jobs:
 
     - name: Build
       run: |
-        neo install
+        nimble install
 
     - name: Run Wayland test
       run: |
