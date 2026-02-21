@@ -2,7 +2,7 @@ import std/[options, posix]
 import
   pkg/nayland/types/display,
   pkg/nayland/types/protocols/core/[compositor, registry, shm, shm_pool, surface],
-  pkg/nayland/bindings/protocols/[core, xdg_shell],
+  pkg/nayland/bindings/protocols/[core, xdg_shell, xdg_decoration_unstable_v1],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel]
 
 const
@@ -83,17 +83,45 @@ let buffer = get pool.createBuffer(
 )
 
 var configured = false
+var decorationReady = true
+var committed = false
+var decorationListener: zxdg_toplevel_decoration_v1_listener
 xdgSurf.onConfigure = proc(xdg: XDGSurface, data: pointer, serial: uint32) =
   xdg.ackConfigure(serial)
-  if configured:
-    return
   configured = true
-  surf.attach(buffer, 0, 0)
-  surf.damage(0, 0, int32(width), int32(height))
-  surf.commit()
 xdgSurf.attachCallbacks()
+
+if "zxdg_decoration_manager_v1" in reg:
+  let decoIface = reg["zxdg_decoration_manager_v1"]
+  let decoManager = cast[ptr zxdg_decoration_manager_v1](
+    reg.bindInterface(
+      decoIface.name, zxdg_decoration_manager_v1_interface.addr, decoIface.version
+    )
+  )
+  let decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
+    decoManager, toplevel.handle
+  )
+  decorationReady = false
+  decorationListener.configure = proc(
+      data: pointer,
+      _: ptr zxdg_toplevel_decoration_v1,
+      mode: uint32,
+  ) {.cdecl.} =
+    let ready = cast[ptr bool](data)
+    ready[] = true
+  discard zxdg_toplevel_decoration_v1_add_listener(
+    decoration, decorationListener.addr, addr decorationReady
+  )
+  zxdg_toplevel_decoration_v1_set_mode(
+    decoration, cast[uint32](ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE)
+  )
 
 surf.commit()
 
 while running:
   disp.dispatch()
+  if configured and decorationReady and not committed:
+    committed = true
+    surf.attach(buffer, 0, 0)
+    surf.damage(0, 0, int32(width), int32(height))
+    surf.commit()
