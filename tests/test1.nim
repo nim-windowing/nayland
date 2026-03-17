@@ -1,10 +1,7 @@
 import std/[tables, posix, options]
 import
   pkg/nayland/types/display,
-  pkg/nayland/types/protocols/core/[
-    buffer, callback, compositor, keyboard, pointer, registry, seat, shm, shm_pool,
-    surface,
-  ],
+  pkg/nayland/types/protocols/core/prelude,
   pkg/nayland/bindings/protocols/[core, xdg_shell, fractional_scale_v1],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
   pkg/nayland/types/protocols/fractional_scale/prelude

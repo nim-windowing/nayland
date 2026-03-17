@@ -30,6 +30,10 @@ type
   wl_pointer* {.importc: "struct $1".} = object
   wl_callback* {.importc: "struct $1".} = object
   wl_keyboard* {.importc: "struct $1".} = object
+  wl_data_offer* {.importc: "struct $1".} = object
+  wl_data_source* {.importc: "struct $1".} = object
+  wl_data_device* {.importc: "struct $1".} = object
+  wl_data_device_manager* {.importc: "struct $1".} = object
 
   wl_pointer_listener* {.importc: "struct $1".} = object
     enter*: proc(
@@ -108,6 +112,9 @@ type
 
   wl_buffer_listener* {.importc: "struct $1".} = object
     release*: proc(data: pointer, buffer: ptr wl_buffer) {.cdecl.}
+
+  wl_data_device_listener* {.importc: "struct $1".} = object
+    offer*: proc(mimeType: cstring) {.cdecl.}
 
 {.push importc.}
 
@@ -189,6 +196,39 @@ proc wl_keyboard_release*(keyb: ptr wl_keyboard)
 proc wl_keyboard_add_listener*(
   keyb: ptr wl_keyboard, listener: ptr wl_keyboard_listener, data: pointer
 ): int32
+
+proc wl_data_device_manager_create_data_source*(
+  mgr: ptr wl_data_device_manager
+): ptr wl_data_source
+
+proc wl_data_device_manager_get_data_device*(
+  mgr: ptr wl_data_device_manager, seat: ptr wl_seat
+): ptr wl_data_device
+
+proc wl_data_source_destroy*(src: ptr wl_data_source)
+proc wl_data_source_offer*(src: ptr wl_data_source, mimeType: cstring)
+proc wl_data_source_set_actions*(src: ptr wl_data_source, dndActions: uint32)
+
+proc wl_data_device_start_drag*(
+  dev: ptr wl_data_device,
+  src: ptr wl_data_source,
+  origin, icon: ptr wl_surface,
+  serial: uint32,
+)
+
+proc wl_data_device_set_selection*(
+  dev: ptr wl_data_device, src: ptr wl_data_source, serial: uint32
+)
+
+proc wl_data_device_release*(dev: ptr wl_data_device)
+
+proc wl_data_offer_destroy*(offer: ptr wl_data_offer)
+proc wl_data_offer_accept*(offer: ptr wl_data_offer, serial: uint32, mime: cstring)
+proc wl_data_offer_receive*(offer: ptr wl_data_offer, mime: cstring, fd: int32)
+proc wl_data_offer_finish*(offer: ptr wl_data_offer)
+proc wl_data_offer_set_actions*(
+  offer: ptr wl_data_offer, dndActions, preferredActions: uint32
+)
 
 # Core Wayland protocol interfaces
 let wl_compositor_interface*: wl_interface
