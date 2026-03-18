@@ -30,6 +30,10 @@ type
   wl_pointer* {.importc: "struct $1".} = object
   wl_callback* {.importc: "struct $1".} = object
   wl_keyboard* {.importc: "struct $1".} = object
+  wl_data_offer* {.importc: "struct $1".} = object
+  wl_data_source* {.importc: "struct $1".} = object
+  wl_data_device* {.importc: "struct $1".} = object
+  wl_data_device_manager* {.importc: "struct $1".} = object
 
   wl_pointer_listener* {.importc: "struct $1".} = object
     enter*: proc(
@@ -108,6 +112,45 @@ type
 
   wl_buffer_listener* {.importc: "struct $1".} = object
     release*: proc(data: pointer, buffer: ptr wl_buffer) {.cdecl.}
+
+  wl_data_offer_listener* {.importc: "struct $1".} = object
+    offer*: proc(data: pointer, offer: ptr wl_data_offer, mimeType: ConstCStr) {.cdecl.}
+    source_actions*:
+      proc(data: pointer, offer: ptr wl_data_offer, actions: uint32) {.cdecl.}
+    action*: proc(data: pointer, offer: ptr wl_data_offer, dndAction: uint32) {.cdecl.}
+
+  wl_data_source_listener* {.importc: "struct $1".} = object
+    target*:
+      proc(data: pointer, source: ptr wl_data_source, mimeType: ConstCStr) {.cdecl.}
+    send*: proc(
+      data: pointer, source: ptr wl_data_source, mimeType: ConstCStr, fd: int32
+    ) {.cdecl.}
+    cancelled*: proc(data: pointer, source: ptr wl_data_source) {.cdecl.}
+    dnd_drop_performed*: proc(data: pointer, source: ptr wl_data_source) {.cdecl.}
+    dnd_finished*: proc(data: pointer, source: ptr wl_data_source) {.cdecl.}
+    action*:
+      proc(data: pointer, source: ptr wl_data_source, dndAction: uint32) {.cdecl.}
+
+  wl_data_device_listener* {.importc: "struct $1".} = object
+    data_offer*: proc(
+      data: pointer, source: ptr wl_data_device, offer: ptr wl_data_offer
+    ) {.cdecl.}
+    enter*: proc(
+      data: pointer,
+      source: ptr wl_data_device,
+      serial: uint32,
+      surface: ptr wl_surface,
+      x, y: wl_fixed,
+      offer: ptr wl_data_offer,
+    ) {.cdecl.}
+    leave*: proc(data: pointer, source: ptr wl_data_device) {.cdecl.}
+    motion*: proc(
+      data: pointer, source: ptr wl_data_device, serial: uint32, x, y: wl_fixed
+    ) {.cdecl.}
+    drop*: proc(data: pointer, source: ptr wl_data_device) {.cdecl.}
+    selection*: proc(
+      data: pointer, source: ptr wl_data_device, offer: ptr wl_data_offer
+    ) {.cdecl.}
 
 {.push importc.}
 
@@ -188,6 +231,50 @@ proc wl_callback_destroy*(cb: ptr wl_callback)
 proc wl_keyboard_release*(keyb: ptr wl_keyboard)
 proc wl_keyboard_add_listener*(
   keyb: ptr wl_keyboard, listener: ptr wl_keyboard_listener, data: pointer
+): int32
+
+proc wl_data_device_manager_create_data_source*(
+  mgr: ptr wl_data_device_manager
+): ptr wl_data_source
+
+proc wl_data_device_manager_get_data_device*(
+  mgr: ptr wl_data_device_manager, seat: ptr wl_seat
+): ptr wl_data_device
+
+proc wl_data_source_destroy*(src: ptr wl_data_source)
+proc wl_data_source_offer*(src: ptr wl_data_source, mimeType: cstring)
+proc wl_data_source_set_actions*(src: ptr wl_data_source, dndActions: uint32)
+proc wl_data_source_add_listener*(
+  src: ptr wl_data_source, listener: ptr wl_data_source_listener, cookie: pointer
+): int32
+
+proc wl_data_device_start_drag*(
+  dev: ptr wl_data_device,
+  src: ptr wl_data_source,
+  origin, icon: ptr wl_surface,
+  serial: uint32,
+)
+
+proc wl_data_device_set_selection*(
+  dev: ptr wl_data_device, src: ptr wl_data_source, serial: uint32
+)
+
+proc wl_data_device_add_listener*(
+  o: ptr wl_data_device, l: ptr wl_data_device_listener, data: pointer
+): int32
+
+proc wl_data_device_release*(dev: ptr wl_data_device)
+
+proc wl_data_offer_destroy*(offer: ptr wl_data_offer)
+proc wl_data_offer_accept*(offer: ptr wl_data_offer, serial: uint32, mime: cstring)
+proc wl_data_offer_receive*(offer: ptr wl_data_offer, mime: cstring, fd: int32)
+proc wl_data_offer_finish*(offer: ptr wl_data_offer)
+proc wl_data_offer_set_actions*(
+  offer: ptr wl_data_offer, dndActions, preferredActions: uint32
+)
+
+proc wl_data_offer_add_listener*(
+  o: ptr wl_data_offer, l: ptr wl_data_offer_listener, data: pointer
 ): int32
 
 # Core Wayland protocol interfaces

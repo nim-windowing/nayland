@@ -7,7 +7,7 @@ import pkg/nayland/types/protocols/core/[keyboard, pointer]
 
 type
   SeatObj = object
-    handle: ptr wl_seat
+    handle*: ptr wl_seat
 
   Seat* = ref SeatObj
 

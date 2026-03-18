@@ -33,10 +33,10 @@ $ nimble add https://github.com/xTrayambak/nayland
 - [X] `wl_buffer`
 - [X] `wl_callback`
 - [X] `wl_shm_pool`
-- [ ] `wl_data_offer`
-- [ ] `wl_data_source`
-- [ ] `wl_data_device`
-- [ ] `wl_data_device_manager`
+- [X] `wl_data_offer`
+- [X] `wl_data_source`
+- [X] `wl_data_device`
+- [X] `wl_data_device_manager`
 - [X] `wl_seat`
 - [X] `wl_pointer`
 - [X] `wl_keyboard`
