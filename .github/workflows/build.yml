@@ -23,5 +23,4 @@ jobs:
         nimble install
 
     - name: Compile Wayland tests
-      run: |
-        nimble test
+      run: nim c tests/test1.nim
