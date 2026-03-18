@@ -6,7 +6,8 @@ import
     [core, xdg_shell, fractional_scale_v1, xdg_system_bell_v1],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
   pkg/nayland/types/protocols/fractional_scale/prelude,
-  pkg/nayland/types/protocols/xdg_system_bell
+  pkg/nayland/types/protocols/xdg_system_bell,
+  pkg/nayland/types/protocols/idle_inhibit/prelude
 
 let disp = connectDisplay()
 let reg = initRegistry(disp)

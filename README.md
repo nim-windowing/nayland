@@ -64,3 +64,7 @@ $ nimble add https://github.com/xTrayambak/nayland
 
 ## System bell V1
 - [X] `xdg_system_bell_v1`
+
+## Idle Inhibit V1
+- [X] `zwp_idle_inhibit_manager_v1`
+- [X] `zwp_idle_inhibitor_v1`
