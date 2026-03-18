@@ -13,6 +13,11 @@ jobs:
     - name: Install Nim
       uses: iffy/install-nim@v5
 
+    - name: Install Wayland compositor and client library
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libwayland-client0 libwayland-egl1 libwayland-dev
+
     - name: Build
       run: |
         nimble install
