@@ -121,10 +121,10 @@ type
 
   wl_data_source_listener* {.importc: "struct $1".} = object
     target*:
-      proc(data: pointer, source: ptr wl_data_source, mimeType: cstring) {.cdecl.}
-    send*: proc(data: pointer, source: ptr wl_data_source, mimeType: cstring, fd: int32) {.
-      cdecl
-    .}
+      proc(data: pointer, source: ptr wl_data_source, mimeType: ConstCStr) {.cdecl.}
+    send*: proc(
+      data: pointer, source: ptr wl_data_source, mimeType: ConstCStr, fd: int32
+    ) {.cdecl.}
     cancelled*: proc(data: pointer, source: ptr wl_data_source) {.cdecl.}
     dnd_drop_performed*: proc(data: pointer, source: ptr wl_data_source) {.cdecl.}
     dnd_finished*: proc(data: pointer, source: ptr wl_data_source) {.cdecl.}
@@ -244,6 +244,9 @@ proc wl_data_device_manager_get_data_device*(
 proc wl_data_source_destroy*(src: ptr wl_data_source)
 proc wl_data_source_offer*(src: ptr wl_data_source, mimeType: cstring)
 proc wl_data_source_set_actions*(src: ptr wl_data_source, dndActions: uint32)
+proc wl_data_source_add_listener*(
+  src: ptr wl_data_source, listener: ptr wl_data_source_listener, cookie: pointer
+): int32
 
 proc wl_data_device_start_drag*(
   dev: ptr wl_data_device,
