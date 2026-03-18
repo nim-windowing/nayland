@@ -61,3 +61,6 @@ $ nimble add https://github.com/xTrayambak/nayland
 ## XDG Decoration V1
 - [X] `zxdg_decoration_manager_v1`
 - [X] `zxdg_toplevel_decoration_v1`
+
+## System bell V1
+- [X] `xdg_system_bell_v1`

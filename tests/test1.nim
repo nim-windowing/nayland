@@ -2,9 +2,11 @@ import std/[tables, posix, options]
 import
   pkg/nayland/types/display,
   pkg/nayland/types/protocols/core/prelude,
-  pkg/nayland/bindings/protocols/[core, xdg_shell, fractional_scale_v1],
+  pkg/nayland/bindings/protocols/
+    [core, xdg_shell, fractional_scale_v1, xdg_system_bell_v1],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
-  pkg/nayland/types/protocols/fractional_scale/prelude
+  pkg/nayland/types/protocols/fractional_scale/prelude,
+  pkg/nayland/types/protocols/xdg_system_bell
 
 let disp = connectDisplay()
 let reg = initRegistry(disp)
@@ -154,6 +156,16 @@ surf.attach(buffr, 0, 0)
 surf.damage(0, 0, 32, 32)
 surf.commit()
 
+let bell =
+  if reg.contains("xdg_system_bell_v1"):
+    block:
+      let iface = reg["xdg_system_bell_v1"]
+      initXDGSystemBell(
+        reg.bindInterface(iface.name, xdg_system_bell_v1_interface.addr, iface.version)
+      )
+  else:
+    nil
+
 proc onFrameCb(callback: Callback, surf: pointer, data: uint32) {.cdecl.} =
   let surf = cast[Surface](surf)
   if not running:
@@ -170,6 +182,9 @@ proc onFrameCb(callback: Callback, surf: pointer, data: uint32) {.cdecl.} =
 
 surf.frame.listen(cast[pointer](surf), onFrameCb)
 commit surf
+
+if bell != nil:
+  bell.ring(surf)
 
 while running:
   disp.roundtrip()
