@@ -21,6 +21,7 @@ type
     frameCb: PointerFrameCallback
     axisCb: PointerAxisCallback
     axisSourceCb: PointerAxisSourceCallback
+    buttonCb: PointerButtonCallback
 
   PointerCallbackPRef = ref PointerCallbackPayload
 
@@ -38,6 +39,12 @@ type
   PointerAxisDiscreteCallback* = proc(pntr: Pointer, axis, discrete: int32)
   PointerAxisValue120Callback* = proc(pntr: Pointer, axis, value120: int32)
   PointerAxisRelativeDirection* = proc(pntr: Pointer, axis, direction: uint32)
+  PointerButtonCallback* =
+    proc(pntr: Pointer, serial, time, button: uint32, state: ButtonState)
+
+  ButtonState* {.pure, size: sizeof(uint32).} = enum
+    Released = 0
+    Pressed = 1
 
   Pointer* = ref PointerObj
 
@@ -71,6 +78,11 @@ let listener = wl_pointer_listener(
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
     payload.axisCb(payload.obj, time, axis, toFloat(value)),
+  button: proc(
+      data: pointer, pntr: ptr wl_pointer, serial, time, button, state: uint32
+  ) {.cdecl.} =
+    let payload = cast[ptr PointerCallbackPayload](data)
+    payload.buttonCb(payload.obj, serial, time, button, cast[ButtonState](state)),
 )
 
 proc release*(pntr: Pointer | PointerObj) =
@@ -93,6 +105,9 @@ proc `onAxis=`*(pntr: Pointer, callback: PointerAxisCallback) =
 
 proc `onAxisSource=`*(pntr: Pointer, callback: PointerAxisSourceCallback) =
   pntr.callbacks.axisSourceCb = callback
+
+proc `onButton=`*(pntr: Pointer, callback: PointerButtonCallback) =
+  pntr.callbacks.buttonCb = callback
 
 proc attachCallbacks*(pntr: Pointer) =
   pntr.callbacks.obj = pntr
