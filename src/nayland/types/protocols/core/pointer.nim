@@ -100,6 +100,9 @@ let listener = wl_pointer_listener(
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
     payload.axisValue120Cb(payload.obj, axis, value120),
+  axis_source: proc(data: pointer, pntr: ptr wl_pointer, axisSource: uint32) {.cdecl.} =
+    let payload = cast[ptr PointerCallbackPayload](data)
+    payload.axisSourceCb(payload.obj, axisSource),
   axis_relative_direction: proc(
       data: pointer, pntr: ptr wl_pointer, axis, direction: uint32
   ) {.cdecl.} =
