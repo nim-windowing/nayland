@@ -21,6 +21,7 @@ proc main() {.inline.} =
       "wayland-client": "pkg/nayland/bindings/libwayland",
       "*: wl_interface": "* {.importc.}: wl_interface",
       "cast[proc () {.cdecl.}]": "cast[ptr proc() {.cdecl.}]",
+      "wl_fixed_t": "wl_fixed",
     }
   )
 
