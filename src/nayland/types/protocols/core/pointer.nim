@@ -8,7 +8,7 @@ import
 
 type
   PointerObj = object
-    handle: ptr wl_pointer
+    handle*: ptr wl_pointer
 
     callbacks: PointerCallbackPRef
 

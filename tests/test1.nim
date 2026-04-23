@@ -1,13 +1,14 @@
-import std/[tables, posix, options]
+import std/[tables, posix, options, random]
 import
   pkg/nayland/types/display,
   pkg/nayland/types/protocols/core/prelude,
   pkg/nayland/bindings/protocols/
-    [core, xdg_shell, fractional_scale_v1, xdg_system_bell_v1],
+    [core, cursor_shape_v1, xdg_shell, fractional_scale_v1, xdg_system_bell_v1],
   pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
   pkg/nayland/types/protocols/fractional_scale/prelude,
   pkg/nayland/types/protocols/xdg_system_bell,
-  pkg/nayland/types/protocols/idle_inhibit/prelude
+  pkg/nayland/types/protocols/idle_inhibit/prelude,
+  pkg/nayland/types/protocols/cursor_shape/prelude
 
 let disp = connectDisplay()
 let reg = initRegistry(disp)
@@ -24,6 +25,8 @@ let compIface = reg["wl_compositor"]
 let comp = initCompositor(
   reg.bindInterface(compIface.name, wl_compositor_interface.addr, compIface.version)
 )
+
+let cursorShape = reg["wp_cursor_shape_manager_v1"]
 
 let outputIface = reg["wl_output"]
 let output = initOutput(
@@ -79,10 +82,19 @@ let seatIface = reg["wl_seat"]
 let seatObj =
   initSeat(reg.bindInterface(seatIface.name, wl_seat_interface.addr, seatIface.version))
 
+let cursorShapeMgr = initCursorShapeManager(
+  reg.bindInterface(
+    cursorShape.name, wp_cursor_shape_manager_v1_interface.addr, cursorShape.version
+  )
+)
 let pointr = get seatObj.getPointer() # internal pointer variable moment
+let cursorShapeDev = cursorShapeMgr.getPointer(pointr)
+
 pointr.onEnter = proc(pntr: Pointer, serial: uint32, surface: Surface, sx, sy: float) =
   echo "oh my god the user entered this surface woaaa!!!"
   echo "local X: " & $sx & ", local Y: " & $sy
+
+  cursorShapeDev.setShape(serial, rand(CursorShape.low ..< CursorShape.high))
 
 pointr.onMotion = proc(pntr: Pointer, time: uint32, sx, sy: float) =
   echo "motion event (local x: " & $sx & "; local y: " & $sy & ')'

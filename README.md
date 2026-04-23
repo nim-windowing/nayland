@@ -72,3 +72,7 @@ $ nimble add https://github.com/xTrayambak/nayland
 ## Layer Shell V1 (Available in most non-GNOME environments)
 - [X] `zwlr_layer_shell_v1`
 - [X] `zwlr_layer_surface_v1`
+
+## Cursor Shape V1
+- [X] `wp_cursor_shape_manager_v1`
+- [X] `wp_cursor_shape_device_v1`
