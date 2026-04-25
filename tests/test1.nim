@@ -94,7 +94,7 @@ pointr.onEnter = proc(pntr: Pointer, serial: uint32, surface: Surface, sx, sy: f
   echo "oh my god the user entered this surface woaaa!!!"
   echo "local X: " & $sx & ", local Y: " & $sy
 
-  cursorShapeDev.setShape(serial, rand(CursorShape.low ..< CursorShape.high))
+  cursorShapeDev.setShape(serial, rand(Shape.low ..< Shape.high))
 
 pointr.onMotion = proc(pntr: Pointer, time: uint32, sx, sy: float) =
   echo "motion event (local x: " & $sx & "; local y: " & $sy & ')'
