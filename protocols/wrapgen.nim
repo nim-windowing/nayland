@@ -141,7 +141,12 @@ proc eatEnum(p: var XmlParser): Enum =
 
         var entry: EnumEntry
         entry.name = attrs["name"]
-        entry.value = cast[uint32](parseUint(attrs["value"]))
+
+        let value = attrs["value"]
+        if value.startsWith("0x"):
+          entry.value = cast[uint32](parseHexInt(attrs["value"]))
+        else:
+          entry.value = cast[uint32](parseUint(attrs["value"]))
         entry.summary = attrs["summary"]
 
         val.entries &= ensureMove(entry)
@@ -354,7 +359,9 @@ proc emitRequests(buffer: var string, iface: Interface, normalizedName: string) 
             buffer &= ".handle"
       buffer &= ')'
       if hasRetval:
-        buffer &= ")\n"
+        buffer &= ')'
+
+      buffer &= "\n\n"
 
   buffer &= "\n\n# wrapgen: end emitting request wrappers"
 
