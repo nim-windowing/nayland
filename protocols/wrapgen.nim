@@ -449,6 +449,9 @@ proc generateWrapper(protocolFile: string) =
 
   createDir(baseDir)
 
+  # Prelude file
+  var preludeBuffer = newStringOfCap(1024)
+
   # Write the wrapper code in there
   for wrapper in emitWrapperCode(ensureMove(body), moduleName):
     let
@@ -457,11 +460,17 @@ proc generateWrapper(protocolFile: string) =
         not fileExists(path) or
         readLineFromStdin(&"Replace '{path}'? [y/N] ").toLowerAscii() == "y"
 
+    let name = wrapper.name.splitFile().name
+    preludeBuffer &= &"import pkg/nayland/types/protocols/{protoDirName}/{name}\n"
+    preludeBuffer &= &"export {name}\n"
+
     if confirmed:
       echo "=> " & path
       writeFile(path, wrapper.data)
     else:
       echo &"Skipped '{path}'"
+
+  writeFile(&"{baseDir}/prelude.nim", ensureMove(preludeBuffer))
 
 proc main() {.inline.} =
   let file = paramStr(1)
