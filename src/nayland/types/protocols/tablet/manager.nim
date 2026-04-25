@@ -3,7 +3,8 @@
 ##
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import pkg/nayland/bindings/protocols/[core, tablet_v2]
-import pkg/nayland/types/protocols/core/prelude
+import
+  pkg/nayland/types/protocols/core/prelude, pkg/nayland/types/protocols/tablet/[seat]
 # wrapgen: begin emitting interface structures
 type
   TabletManagerObj* = object
@@ -32,8 +33,6 @@ proc `=destroy`*(obj: TabletManagerObj) =
   ## Destroy the zwp_tablet_manager_v2 object. Objects created from this object are unaffected and should be destroyed separately.
   zwp_tablet_manager_v2_destroy(obj.handle)
 
-
-
 # wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletManager*(raw: ptr zwp_tablet_manager_v2 | pointer): TabletManager =
@@ -42,7 +41,7 @@ func initTabletManager*(raw: ptr zwp_tablet_manager_v2 | pointer): TabletManager
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletManager() was given an uninitialized handle!")
-  
+
   TabletManager(handle: cast[ptr zwp_tablet_manager_v2](raw))
 
 func newTabletManager*(raw: ptr zwp_tablet_manager_v2): TabletManager =
@@ -51,7 +50,7 @@ func newTabletManager*(raw: ptr zwp_tablet_manager_v2): TabletManager =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletManager() was given an uninitialized handle!")
-  
+
   TabletManager(handle: raw)
 
 # wrapgen: end emitting constructor routines

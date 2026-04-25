@@ -294,12 +294,13 @@ func new{normalizedName}*(raw: ptr {iface.name}): {normalizedName} =
   buffer &= "\n# wrapgen: end emitting constructor routines\n"
 
 func isComplexType(typ: string): bool {.inline.} =
-  const SimpleTypes = ["uint", "string"] # TODO: there's probably more I forgot
+  const SimpleTypes = ["uint", "string", "int"] # TODO: there's probably more I forgot
 
   typ notin SimpleTypes
 
 func normalizeTypeName(typ: string): string {.inline.} =
-  const SubTable = {"uint": "uint32", "string": "string"}.toTable
+  const SubTable =
+    {"uint": "uint32", "string": "string", "int": "int32", "fixed": "float"}.toTable
 
   if isComplexType(typ):
     # If it's a wayland interface, normalize it
@@ -357,6 +358,8 @@ proc emitRequests(buffer: var string, iface: Interface, normalizedName: string) 
 
           if isComplexType(arg.typ):
             buffer &= ".handle"
+          elif arg.typ == "fixed":
+            buffer &= ".toFloat"
       buffer &= ')'
       if hasRetval:
         buffer &= ')'
