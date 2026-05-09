@@ -107,3 +107,7 @@ It's simply verified to be compiling.
 ## Content Type V1
 - [X] `wp_content_type_manager_v1`
 - [X] `wp_content_type_v1`
+
+## Tearing Control V1
+- [X] `wp_tearing_control_manager_v1`
+- [X] `wp_tearing_control_v1`
