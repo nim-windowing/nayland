@@ -1,17 +1,4 @@
-## Fractional scale (`fractional-scale-v1`)
-##
-## Protocol for requesting fractional surface scales
-## This protocol allows a compositor to suggest for surfaces to render at fractional scales.
-##
-## A client can submit scaled content by utilizing wp_viewport. This is done by creating a wp_viewport object for the surface and setting the destination rectangle to the surface size before the scale factor is applied.
-## 
-## The buffer size is calculated by multiplying the surface size by the intended scale.
-## 
-## The wl_surface buffer scale should remain set to 1.
-## 
-## If a surface has a surface-local size of 100 px by 50 px and wishes to submit buffers with a scale of 1.5, then a buffer of 150px by 75 px should be used and the wp_viewport destination rectangle should be 100 px by 50 px.
-## 
-## For toplevel surfaces, the size is rounded halfway away from zero. The rounding algorithm for subsurface position and size is not defined.
-import pkg/nayland/types/protocols/fractional_scale/[manager, scale]
-
-export manager, scale
+import pkg/nayland/types/protocols/fractional_scale/manager
+export manager
+import pkg/nayland/types/protocols/fractional_scale/scale
+export scale

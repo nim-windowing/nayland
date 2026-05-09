@@ -8,7 +8,8 @@ import
   pkg/nayland/types/protocols/fractional_scale/prelude,
   pkg/nayland/types/protocols/xdg_system_bell,
   pkg/nayland/types/protocols/idle_inhibit/prelude,
-  pkg/nayland/types/protocols/cursor_shape/prelude
+  pkg/nayland/types/protocols/cursor_shape/prelude,
+  pkg/nayland/types/protocols/tablet/prelude
 
 let disp = connectDisplay()
 let reg = initRegistry(disp)
@@ -94,7 +95,7 @@ pointr.onEnter = proc(pntr: Pointer, serial: uint32, surface: Surface, sx, sy: f
   echo "oh my god the user entered this surface woaaa!!!"
   echo "local X: " & $sx & ", local Y: " & $sy
 
-  cursorShapeDev.setShape(serial, rand(CursorShape.low ..< CursorShape.high))
+  cursorShapeDev.setShape(serial, rand(Shape.low ..< Shape.high))
 
 pointr.onMotion = proc(pntr: Pointer, time: uint32, sx, sy: float) =
   echo "motion event (local x: " & $sx & "; local y: " & $sy & ')'
