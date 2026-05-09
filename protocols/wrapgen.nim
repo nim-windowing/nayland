@@ -274,13 +274,21 @@ func normalizeEnumIdent(ident: string, firstCapital: bool = true): string =
   ensureMove(buff)
 
 func isComplexType(typ: string): bool {.inline.} =
-  const SimpleTypes = ["uint", "string", "int"] # TODO: there's probably more I forgot
+  const SimpleTypes = ["uint", "string", "int", "fixed"]
+    # TODO: there's probably more I forgot
 
   typ notin SimpleTypes
 
-func normalizeTypeName(typ: string): string {.inline.} =
-  const SubTable =
-    {"uint": "uint32", "string": "string", "int": "int32", "fixed": "float"}.toTable
+func normalizeTypeName(typ: string, fixedToFloat: bool = false): string {.inline.} =
+  var SubTable = {
+    "uint": "uint32",
+    "string": "string",
+    "int": "int32",
+    "string": "cstring",
+    "fixed": "wl_fixed",
+  }.toTable
+  if fixedToFloat:
+    SubTable["fixed"] = "float"
 
   if isComplexType(typ):
     # If it's a wayland interface, normalize it
@@ -335,7 +343,7 @@ proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: s
         &"  {normalizedName}{norm[0].toUpperAscii & norm[1 ..< norm.len]}Callback* = proc("
 
       for i, arg in event.args:
-        buffer &= &"{arg.name}: {normalizeTypeName(arg.typ)}"
+        buffer &= &"{arg.name}: {normalizeTypeName(arg.typ, fixedToFloat = true)}"
 
         if i + 1 < event.args.len:
           buffer &= ", "
@@ -346,7 +354,7 @@ proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: s
     for event in iface.events:
       let norm = normalizeInterfaceName(event.name)
       buffer &=
-        &"    {event.name}Cb: {normalizedName}{norm[0].toUpperAscii & norm[1 ..< norm.len]}Callback"
+        &"    {event.name}Cb: {normalizedName}{norm[0].toUpperAscii & norm[1 ..< norm.len]}Callback\n"
 
   # Step 5: Destructors because they need to be the first routine declared after the type 's declaration
   buffer &= "\n\n"
@@ -360,6 +368,12 @@ proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: s
     break
 
 proc emitInterfaceCtors(buffer: var string, iface: Interface, normalizedName: string) =
+  let ending =
+    if iface.events.len > 0:
+      &", payload: {normalizedName}Payload())"
+    else:
+      ")"
+
   buffer &= "\n# wrapgen: begin emitting constructor routines\n"
   buffer &=
     &"""
@@ -370,7 +384,7 @@ func init{normalizedName}*(raw: ptr {iface.name} | pointer): {normalizedName} =
   when not defined(danger):
     assert(raw != nil, "BUG: init{normalizedName}() was given an uninitialized handle!")
   
-  {normalizedName}(handle: cast[ptr {iface.name}](raw), payload: {normalizedName}Payload())
+  {normalizedName}(handle: cast[ptr {iface.name}](raw){ending}
 
 func new{normalizedName}*(raw: ptr {iface.name}): {normalizedName} =
   ## Instantiate a {normalizedName} using its low-level libwayland handle.
@@ -379,7 +393,7 @@ func new{normalizedName}*(raw: ptr {iface.name}): {normalizedName} =
   when not defined(danger):
     assert(raw != nil, "BUG: new{normalizedName}() was given an uninitialized handle!")
   
-  {normalizedName}(handle: raw, payload: {normalizedName}Payload())
+  {normalizedName}(handle: raw{ending}
 """
 
   buffer &= "\n# wrapgen: end emitting constructor routines\n"
@@ -484,6 +498,8 @@ proc emitEvents(buffer: var string, iface: Interface, normalizedName: string) =
     buffer &= &"payload.{event.name}Cb("
     for i, arg in event.args:
       buffer &= &"{arg.name}"
+      if arg.typ == "fixed":
+        buffer &= ".toFloat"
 
       if i + 1 < event.args.len:
         buffer &= ", "
@@ -511,7 +527,6 @@ proc attachCallbacks*(obj: {normalizedName}) =
     buffer &= &"  obj.payload.{event.name}Cb = cb\n"
 
 proc emitWrapperCode(body: seq[Interface], bindingModuleName: string): seq[Wrapper] =
-  print body
   var wrappers: seq[Wrapper]
   for iface in body:
     var buffer = newStringOfCap(4096) # super accurate prealloc method
