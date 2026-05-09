@@ -103,3 +103,7 @@ It's simply verified to be compiling.
 ## Presentation Time
 - [X] `wp_presentation`
 - [X] `wp_presentation_feedback`
+
+## Content Type V1
+- [X] `wp_content_type_manager_v1`
+- [X] `wp_content_type_v1`
