@@ -33,6 +33,12 @@ type
     summary*, description*: string
     entries*: seq[EnumEntry]
 
+  Event* = object
+    name*: string
+    description*: string
+    summary*: string
+    args*: seq[Arg]
+
   Interface* = object
     name*: string
     version*: uint32
@@ -40,6 +46,7 @@ type
     summary*: string
     description*: string
     requests*: seq[Request]
+    events*: seq[Event]
 
     enums*: seq[Enum]
 
@@ -123,6 +130,36 @@ proc eatRequest(p: var XmlParser): Request =
       unreachable
 
   ensureMove(req)
+
+func normalizeInterfaceName(name: string): string
+
+proc eatEvent(p: var XmlParser): Event =
+  var event: Event
+  let attrs = eatAttrs p
+
+  event.name = attrs["name"]
+
+  while p.kind != xmlEof:
+    p.next()
+    case p.kind
+    of xmlElementOpen:
+      if p.elementName == "description":
+        let attrsDesc = eatAttrs(p)
+        event.summary = attrsDesc["summary"]
+        event.description = normalizeDocStr(eatCharData p)
+      elif p.elementName == "arg":
+        event.args &= eatArg(p)
+      else:
+        discard
+    of xmlElementEnd:
+      if p.elementName == "event":
+        break
+    of xmlElementClose:
+      discard
+    else:
+      unreachable
+
+  ensureMove(event)
 
 proc eatEnum(p: var XmlParser): Enum =
   var val: Enum
@@ -236,6 +273,22 @@ func normalizeEnumIdent(ident: string, firstCapital: bool = true): string =
 
   ensureMove(buff)
 
+func isComplexType(typ: string): bool {.inline.} =
+  const SimpleTypes = ["uint", "string", "int"] # TODO: there's probably more I forgot
+
+  typ notin SimpleTypes
+
+func normalizeTypeName(typ: string): string {.inline.} =
+  const SubTable =
+    {"uint": "uint32", "string": "string", "int": "int32", "fixed": "float"}.toTable
+
+  if isComplexType(typ):
+    # If it's a wayland interface, normalize it
+    return normalizeInterfaceName(typ)
+
+  # Else, substitute it.
+  SubTable[typ]
+
 proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: string) =
   buffer &= "\n# wrapgen: begin emitting interface structures\ntype\n"
   # Step 1: Generate any enums
@@ -258,7 +311,12 @@ proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: s
 
   # Step 2: Generate the raw non-GC'd struct
   buffer &= &"  {normalizedName}Obj* = object\n"
-  buffer &= &"    handle*: ptr {iface.name}\n\n" # The low level libwayland handle
+  buffer &= &"    handle*: ptr {iface.name}\n" # The low level libwayland handle
+  if iface.events.len > 0:
+    buffer &= &"    payload: {normalizedName}Payload\n"
+      # Nayland's payload callbacks system
+
+  buffer &= '\n'
 
   # Step 3: Generate the GC'd struct
   buffer &= &"  {normalizedName}* = ref {normalizedName}Obj\n"
@@ -266,7 +324,40 @@ proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: s
     &"    ## =====\n    ## {iface.summary}\n    ## =====\n    ## {iface.description}"
     # documentation goodies :^)
 
-  buffer &= "\n\n# wrapgen: end emitting interface structures"
+  # Step 4: Event structs, if they exist.
+  if iface.events.len > 0:
+    let payloadStructName = normalizedName & "Payload"
+
+    buffer &= "\n\n"
+    for event in iface.events:
+      let norm = normalizeInterfaceName(event.name)
+      buffer &=
+        &"  {normalizedName}{norm[0].toUpperAscii & norm[1 ..< norm.len]}Callback* = proc("
+
+      for i, arg in event.args:
+        buffer &= &"{arg.name}: {normalizeTypeName(arg.typ)}"
+
+        if i + 1 < event.args.len:
+          buffer &= ", "
+
+      buffer &= ")\n"
+
+    buffer &= &"  {payloadStructName} = ref object\n"
+    for event in iface.events:
+      let norm = normalizeInterfaceName(event.name)
+      buffer &=
+        &"    {event.name}Cb: {normalizedName}{norm[0].toUpperAscii & norm[1 ..< norm.len]}Callback"
+
+  # Step 5: Destructors because they need to be the first routine declared after the type 's declaration
+  buffer &= "\n\n"
+  for req in iface.requests:
+    if req.kind != RequestKind.Destructor:
+      continue
+
+    buffer &= &"proc `=destroy`*(obj: {normalizedName}Obj) =\n"
+    buffer &= &"  ## =====\n  ## {req.summary}\n  ## =====\n  ## {req.description}\n"
+    buffer &= &"  {iface.name}_{req.name}(obj.handle)\n\n"
+    break
 
 proc emitInterfaceCtors(buffer: var string, iface: Interface, normalizedName: string) =
   buffer &= "\n# wrapgen: begin emitting constructor routines\n"
@@ -279,7 +370,7 @@ func init{normalizedName}*(raw: ptr {iface.name} | pointer): {normalizedName} =
   when not defined(danger):
     assert(raw != nil, "BUG: init{normalizedName}() was given an uninitialized handle!")
   
-  {normalizedName}(handle: cast[ptr {iface.name}](raw))
+  {normalizedName}(handle: cast[ptr {iface.name}](raw), payload: {normalizedName}Payload())
 
 func new{normalizedName}*(raw: ptr {iface.name}): {normalizedName} =
   ## Instantiate a {normalizedName} using its low-level libwayland handle.
@@ -288,26 +379,10 @@ func new{normalizedName}*(raw: ptr {iface.name}): {normalizedName} =
   when not defined(danger):
     assert(raw != nil, "BUG: new{normalizedName}() was given an uninitialized handle!")
   
-  {normalizedName}(handle: raw)
+  {normalizedName}(handle: raw, payload: {normalizedName}Payload())
 """
 
   buffer &= "\n# wrapgen: end emitting constructor routines\n"
-
-func isComplexType(typ: string): bool {.inline.} =
-  const SimpleTypes = ["uint", "string", "int"] # TODO: there's probably more I forgot
-
-  typ notin SimpleTypes
-
-func normalizeTypeName(typ: string): string {.inline.} =
-  const SubTable =
-    {"uint": "uint32", "string": "string", "int": "int32", "fixed": "float"}.toTable
-
-  if isComplexType(typ):
-    # If it's a wayland interface, normalize it
-    return normalizeInterfaceName(typ)
-
-  # Else, substitute it.
-  SubTable[typ]
 
 proc emitRequests(buffer: var string, iface: Interface, normalizedName: string) =
   buffer &= "\n# wrapgen: start emitting request wrappers\n"
@@ -315,9 +390,7 @@ proc emitRequests(buffer: var string, iface: Interface, normalizedName: string) 
   for req in iface.requests:
     case req.kind
     of RequestKind.Destructor:
-      buffer &= &"proc `=destroy`*(obj: {normalizedName}Obj) =\n"
-      buffer &= &"  ## =====\n  ## {req.summary}\n  ## =====\n  ## {req.description}\n"
-      buffer &= &"  {iface.name}_{req.name}(obj.handle)\n\n"
+      discard # Already handled in the struct generation pass.
     of RequestKind.Call:
       buffer &=
         &"\nproc {normalizeEnumIdent(req.name, firstCapital = false)}*(obj: {normalizedName}"
@@ -379,7 +452,66 @@ converter shim{i}*(v: {evalue.name[0].toUpperAscii & evalue.name[1 ..< evalue.na
 
   buffer &= "# wrapgen: end emitting enum shims\n"
 
+proc emitEvents(buffer: var string, iface: Interface, normalizedName: string) =
+  if iface.events.len < 1:
+    return
+
+  let payloadStructName = normalizedName & "Payload"
+
+  buffer &= "\n\nlet listener {.global.} =\n"
+  buffer &= &"  {iface.name}_listener(\n"
+
+  for i, event in iface.events:
+    buffer &= &"    {event.name}: proc(data: pointer, this: ptr {iface.name}"
+
+    for arg in event.args:
+      buffer &= &", {arg.name}: {normalizeTypeName(arg.typ)}"
+
+    buffer &= ") {.cdecl.} =\n"
+
+    const Indent = "      "
+
+    buffer &= Indent
+    buffer &= &"let payload = cast[{payloadStructName}](data)\n"
+    buffer &=
+      &"""
+      if payload.{event.name}Cb == nil:
+        write(stderr, "[nayland] handler not attached for event '{event.name}'!\n")
+        return
+
+"""
+    buffer &= Indent
+    buffer &= &"payload.{event.name}Cb("
+    for i, arg in event.args:
+      buffer &= &"{arg.name}"
+
+      if i + 1 < event.args.len:
+        buffer &= ", "
+
+    buffer &= ')'
+
+    if i + 1 < iface.events.len:
+      buffer &= "  ,"
+
+  buffer &= "\n)\n"
+
+  buffer &=
+    &"""
+proc attachCallbacks*(obj: {normalizedName}) =
+  discard {iface.name}_add_listener(obj.handle, listener.addr, cast[pointer](obj.payload))
+
+"""
+
+  for event in iface.events:
+    let norm = normalizeInterfaceName(event.name)
+    let eventName = norm[0].toUpperAscii & norm[1 ..< norm.len]
+    buffer &=
+      &"func `on{eventName}=`*(obj: {normalizedName}, cb: {normalizedName}{eventName}Callback)"
+    buffer &= " {.inline, raises: [].} =\n"
+    buffer &= &"  obj.payload.{event.name}Cb = cb\n"
+
 proc emitWrapperCode(body: seq[Interface], bindingModuleName: string): seq[Wrapper] =
+  print body
   var wrappers: seq[Wrapper]
   for iface in body:
     var buffer = newStringOfCap(4096) # super accurate prealloc method
@@ -397,11 +529,14 @@ proc emitWrapperCode(body: seq[Interface], bindingModuleName: string): seq[Wrapp
     # Generate code for the actual struct
     emitInterfaceStruct(buffer, iface, normalizedName)
 
-    # Generate code for the method calls and destructor
-    emitRequests(buffer, iface, normalizedName)
-
     # Generate constructor code
     emitInterfaceCtors(buffer, iface, normalizedName)
+
+    # Generate code for events + callbacks-attach proc
+    emitEvents(buffer, iface, normalizedName)
+
+    # Generate code for the method calls and destructor
+    emitRequests(buffer, iface, normalizedName)
 
     # Finally, generate some converters just so old code doesn't catastrophically break.
     emitShims(buffer, iface)
@@ -432,6 +567,8 @@ proc generateWrapper(protocolFile: string) =
         currIface.description = normalizeDocStr(eatCharData p)
       elif p.elementName == "request":
         currIface.requests &= eatRequest(p)
+      elif p.elementName == "event":
+        currIface.events &= eatEvent(p)
       elif p.elementName == "enum":
         currIface.enums &= eatEnum(p)
     of xmlElementEnd:
