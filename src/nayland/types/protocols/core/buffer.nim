@@ -42,3 +42,6 @@ proc attachCallbacks*(buffer: Buffer) =
 
 func newBuffer*(handle: ptr wl_buffer): Buffer =
   Buffer(handle: handle, payload: BuffercallbackPayload())
+
+func initBuffer*(handle: ptr wl_buffer): Buffer =
+  Buffer(handle: handle, payload: BuffercallbackPayload())

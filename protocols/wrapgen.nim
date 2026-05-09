@@ -275,7 +275,7 @@ func normalizeEnumIdent(ident: string, firstCapital: bool = true): string =
   ensureMove(buff)
 
 func isComplexType(typ: string): bool {.inline.} =
-  const SimpleTypes = ["uint", "string", "int", "fixed"]
+  const SimpleTypes = ["uint", "string", "int", "fixed", "fd"]
     # TODO: there's probably more I forgot
 
   typ notin SimpleTypes
@@ -287,6 +287,7 @@ func normalizeTypeName(typ: string, fixedToFloat: bool = false): string {.inline
     "int": "int32",
     "string": "cstring",
     "fixed": "wl_fixed",
+    "fd": "int32",
   }.toTable
   if fixedToFloat:
     SubTable["fixed"] = "float"

@@ -333,6 +333,7 @@ let wl_compositor_interface*: wl_interface
 let wl_shm_interface*: wl_interface
 let wl_seat_interface*: wl_interface
 let wl_output_interface*: wl_interface
+let wl_buffer_interface*: wl_interface
 
 {.pop.}
 

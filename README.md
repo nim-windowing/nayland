@@ -111,3 +111,8 @@ It's simply verified to be compiling.
 ## Tearing Control V1
 - [X] `wp_tearing_control_manager_v1`
 - [X] `wp_tearing_control_v1`
+
+## Linux DMA-BUF V1
+- [X] `zwp_linux_dmabuf_v1`
+- [X] `zwp_linux_buffer_params_v1`
+- [X] `zwp_linux_dmabuf_feedback_v1`
