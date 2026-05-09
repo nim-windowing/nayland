@@ -71,6 +71,8 @@ proc wl_proxy_marshal_flags*(
   flags: uint32,
 ): ptr wl_proxy {.varargs, discardable.}
 
+proc wl_proxy_destroy*(proxy: ptr wl_proxy)
+
 proc wl_proxy_marshal_array_flags*(
   proxy: ptr wl_proxy,
   opcode: uint32,

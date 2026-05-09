@@ -99,3 +99,7 @@ It's simply verified to be compiling.
 - [X] `zwp_tablet_pad_ring_v2`
 - [X] `zwp_tablet_pad_strip_v2`
 - [X] `zwp_tablet_pad_v2`
+
+## Presentation Time
+- [X] `wp_presentation`
+- [X] `wp_presentation_feedback`
