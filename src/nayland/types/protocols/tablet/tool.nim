@@ -4,6 +4,7 @@
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import pkg/nayland/bindings/protocols/[core, tablet_v2]
 import pkg/nayland/types/protocols/core/prelude
+import pkg/nayland/types/protocols/tablet/[tablet]
 # wrapgen: begin emitting interface structures
 type
   Type* {.pure, size: sizeof(uint32).} = enum
@@ -49,22 +50,56 @@ type
 
   TabletToolObj* = object
     handle*: ptr zwp_tablet_tool_v2
+    payload: TabletToolPayload
 
   TabletTool* = ref TabletToolObj
     ## =====
-    ## frame event
+    ## a physical tablet tool
     ## =====
-    ## Marks the end of a series of axis and/or button updates from the tablet. The Wayland protocol requires axis updates to be sent sequentially, however all events within a frame should be considered one hardware event.
+    ## An object that represents a physical tool that has been, or is currently in use with a tablet in this seat. Each zwp_tablet_tool_v2 object stays valid until the client destroys it; the compositor reuses the zwp_tablet_tool_v2 object to indicate that the object's respective physical tool has come into proximity of a tablet again. A zwp_tablet_tool_v2 object's relation to a physical tool depends on the tablet's ability to report serial numbers. If the tablet supports this capability, then the object represents a specific physical tool and can be identified even when used on multiple tablets. A tablet tool has a number of static characteristics, e.g. tool type, hardware_serial and capabilities. These capabilities are sent in an event sequence after the zwp_tablet_seat_v2.tool_added event before any actual events from this tool. This initial event sequence is terminated by a zwp_tablet_tool_v2.done event. Tablet tool events are grouped by zwp_tablet_tool_v2.frame events. Any events received before a zwp_tablet_tool_v2.frame event should be considered part of the same hardware state change.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
-
-proc setCursor*(obj: TabletTool, Serial: uint32, Surface: Surface, HotspotX: int32, HotspotY: int32) =
-  ## =====
-  ## set the tablet tool's surface
-  ## =====
-  ## Sets the surface of the cursor used for this tool on the given tablet. This request only takes effect if the tool is in proximity of one of the requesting client's surfaces or the surface parameter is the current pointer surface. If there was a previous surface set with this request it is replaced. If surface is NULL, the cursor image is hidden. The parameters hotspot_x and hotspot_y define the position of the pointer surface relative to the pointer location. Its top-left corner is always at (x, y) - (hotspot_x, hotspot_y), where (x, y) are the coordinates of the pointer location, in surface-local coordinates. On surface.attach requests to the pointer surface, hotspot_x and hotspot_y are decremented by the x and y parameters passed to the request. Attach must be confirmed by wl_surface.commit as usual. The hotspot can also be updated by passing the currently set pointer surface to this request with new values for hotspot_x and hotspot_y. The current and pending input regions of the wl_surface are cleared, and wl_surface.set_input_region is ignored until the wl_surface is no longer used as the cursor. When the use as a cursor ends, the current and pending input regions become undefined, and the wl_surface is unmapped. This request gives the surface the role of a zwp_tablet_tool_v2 cursor. A surface may only ever be used as the cursor surface for one zwp_tablet_tool_v2. If the surface already has another role or has previously been used as cursor surface for a different tool, a protocol error is raised.
-  zwp_tablet_tool_v2_set_cursor(obj.handle, Serial, Surface.handle, HotspotX, HotspotY)
+  TabletToolTypeCallback* = proc(tool_type: uint32)
+  TabletToolHardwareSerialCallback* =
+    proc(hardware_serial_hi: uint32, hardware_serial_lo: uint32)
+  TabletToolHardwareIdWacomCallback* =
+    proc(hardware_id_hi: uint32, hardware_id_lo: uint32)
+  TabletToolCapabilityCallback* = proc(capability: uint32)
+  TabletToolDoneCallback* = proc()
+  TabletToolRemovedCallback* = proc()
+  TabletToolProximityInCallback* =
+    proc(serial: uint32, tablet: Tablet, surface: Surface)
+  TabletToolProximityOutCallback* = proc()
+  TabletToolDownCallback* = proc(serial: uint32)
+  TabletToolUpCallback* = proc()
+  TabletToolMotionCallback* = proc(x: float, y: float)
+  TabletToolPressureCallback* = proc(pressure: uint32)
+  TabletToolDistanceCallback* = proc(distance: uint32)
+  TabletToolTiltCallback* = proc(tilt_x: float, tilt_y: float)
+  TabletToolRotationCallback* = proc(degrees: float)
+  TabletToolSliderCallback* = proc(position: int32)
+  TabletToolWheelCallback* = proc(degrees: float, clicks: int32)
+  TabletToolButtonCallback* = proc(serial: uint32, button: uint32, state: uint32)
+  TabletToolFrameCallback* = proc(time: uint32)
+  TabletToolPayload = ref object
+    typeCb: TabletToolTypeCallback
+    hardware_serialCb: TabletToolHardwareSerialCallback
+    hardware_id_wacomCb: TabletToolHardwareIdWacomCallback
+    capabilityCb: TabletToolCapabilityCallback
+    doneCb: TabletToolDoneCallback
+    removedCb: TabletToolRemovedCallback
+    proximity_inCb: TabletToolProximityInCallback
+    proximity_outCb: TabletToolProximityOutCallback
+    downCb: TabletToolDownCallback
+    upCb: TabletToolUpCallback
+    motionCb: TabletToolMotionCallback
+    pressureCb: TabletToolPressureCallback
+    distanceCb: TabletToolDistanceCallback
+    tiltCb: TabletToolTiltCallback
+    rotationCb: TabletToolRotationCallback
+    sliderCb: TabletToolSliderCallback
+    wheelCb: TabletToolWheelCallback
+    buttonCb: TabletToolButtonCallback
+    frameCb: TabletToolFrameCallback
 
 proc `=destroy`*(obj: TabletToolObj) =
   ## =====
@@ -73,9 +108,6 @@ proc `=destroy`*(obj: TabletToolObj) =
   ## This destroys the client's resource for this tool object.
   zwp_tablet_tool_v2_destroy(obj.handle)
 
-
-
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletTool*(raw: ptr zwp_tablet_tool_v2 | pointer): TabletTool =
   ## Instantiate a TabletTool using its low-level libwayland handle.
@@ -83,8 +115,8 @@ func initTabletTool*(raw: ptr zwp_tablet_tool_v2 | pointer): TabletTool =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletTool() was given an uninitialized handle!")
-  
-  TabletTool(handle: cast[ptr zwp_tablet_tool_v2](raw))
+
+  TabletTool(handle: cast[ptr zwp_tablet_tool_v2](raw), payload: TabletToolPayload())
 
 func newTabletTool*(raw: ptr zwp_tablet_tool_v2): TabletTool =
   ## Instantiate a TabletTool using its low-level libwayland handle.
@@ -92,14 +124,273 @@ func newTabletTool*(raw: ptr zwp_tablet_tool_v2): TabletTool =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletTool() was given an uninitialized handle!")
-  
-  TabletTool(handle: raw)
+
+  TabletTool(handle: raw, payload: TabletToolPayload())
 
 # wrapgen: end emitting constructor routines
 
+let listener {.global.} = zwp_tablet_tool_v2_listener(
+  type: proc(data: pointer, this: ptr zwp_tablet_tool_v2, tool_type: uint32) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.typeCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'type'!\n")
+      return
+
+    payload.typeCb(tool_type),
+  hardware_serial: proc(
+      data: pointer,
+      this: ptr zwp_tablet_tool_v2,
+      hardware_serial_hi: uint32,
+      hardware_serial_lo: uint32,
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.hardware_serialCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'hardware_serial'!\n")
+      return
+
+    payload.hardware_serialCb(hardware_serial_hi, hardware_serial_lo),
+  hardware_id_wacom: proc(
+      data: pointer,
+      this: ptr zwp_tablet_tool_v2,
+      hardware_id_hi: uint32,
+      hardware_id_lo: uint32,
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.hardware_id_wacomCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'hardware_id_wacom'!\n")
+      return
+
+    payload.hardware_id_wacomCb(hardware_id_hi, hardware_id_lo),
+  capability: proc(
+      data: pointer, this: ptr zwp_tablet_tool_v2, capability: uint32
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.capabilityCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'capability'!\n")
+      return
+
+    payload.capabilityCb(capability),
+  done: proc(data: pointer, this: ptr zwp_tablet_tool_v2) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.doneCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'done'!\n")
+      return
+
+    payload.doneCb(),
+  removed: proc(data: pointer, this: ptr zwp_tablet_tool_v2) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.removedCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'removed'!\n")
+      return
+
+    payload.removedCb(),
+  proximity_in: proc(
+      data: pointer,
+      this: ptr zwp_tablet_tool_v2,
+      serial: uint32,
+      tablet: ptr zwp_tablet_v2,
+      surface: ptr wl_surface,
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.proximity_inCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'proximity_in'!\n")
+      return
+
+    payload.proximity_inCb(serial, initTablet(tablet), newSurface(surface)),
+  proximity_out: proc(data: pointer, this: ptr zwp_tablet_tool_v2) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.proximity_outCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'proximity_out'!\n")
+      return
+
+    payload.proximity_outCb(),
+  down: proc(data: pointer, this: ptr zwp_tablet_tool_v2, serial: uint32) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.downCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'down'!\n")
+      return
+
+    payload.downCb(serial),
+  up: proc(data: pointer, this: ptr zwp_tablet_tool_v2) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.upCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'up'!\n")
+      return
+
+    payload.upCb(),
+  motion: proc(
+      data: pointer, this: ptr zwp_tablet_tool_v2, x: wl_fixed, y: wl_fixed
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.motionCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'motion'!\n")
+      return
+
+    payload.motionCb(x.toFloat, y.toFloat),
+  pressure: proc(
+      data: pointer, this: ptr zwp_tablet_tool_v2, pressure: uint32
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.pressureCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'pressure'!\n")
+      return
+
+    payload.pressureCb(pressure),
+  distance: proc(
+      data: pointer, this: ptr zwp_tablet_tool_v2, distance: uint32
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.distanceCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'distance'!\n")
+      return
+
+    payload.distanceCb(distance),
+  tilt: proc(
+      data: pointer, this: ptr zwp_tablet_tool_v2, tilt_x: wl_fixed, tilt_y: wl_fixed
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.tiltCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'tilt'!\n")
+      return
+
+    payload.tiltCb(tilt_x.toFloat, tilt_y.toFloat),
+  rotation: proc(
+      data: pointer, this: ptr zwp_tablet_tool_v2, degrees: wl_fixed
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.rotationCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'rotation'!\n")
+      return
+
+    payload.rotationCb(degrees.toFloat),
+  slider: proc(data: pointer, this: ptr zwp_tablet_tool_v2, position: int32) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.sliderCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'slider'!\n")
+      return
+
+    payload.sliderCb(position),
+  wheel: proc(
+      data: pointer, this: ptr zwp_tablet_tool_v2, degrees: wl_fixed, clicks: int32
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.wheelCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'wheel'!\n")
+      return
+
+    payload.wheelCb(degrees.toFloat, clicks),
+  button: proc(
+      data: pointer,
+      this: ptr zwp_tablet_tool_v2,
+      serial: uint32,
+      button: uint32,
+      state: uint32,
+  ) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.buttonCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'button'!\n")
+      return
+
+    payload.buttonCb(serial, button, state),
+  frame: proc(data: pointer, this: ptr zwp_tablet_tool_v2, time: uint32) {.cdecl.} =
+    let payload = cast[TabletToolPayload](data)
+    if payload.frameCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'frame'!\n")
+      return
+
+    payload.frameCb(time),
+)
+proc attachCallbacks*(obj: TabletTool) =
+  discard zwp_tablet_tool_v2_add_listener(
+    obj.handle, listener.addr, cast[pointer](obj.payload)
+  )
+
+func `onType=`*(obj: TabletTool, cb: TabletToolTypeCallback) {.inline, raises: [].} =
+  obj.payload.typeCb = cb
+func `onHardwareSerial=`*(
+    obj: TabletTool, cb: TabletToolHardwareSerialCallback
+) {.inline, raises: [].} =
+  obj.payload.hardware_serialCb = cb
+func `onHardwareIdWacom=`*(
+    obj: TabletTool, cb: TabletToolHardwareIdWacomCallback
+) {.inline, raises: [].} =
+  obj.payload.hardware_id_wacomCb = cb
+func `onCapability=`*(
+    obj: TabletTool, cb: TabletToolCapabilityCallback
+) {.inline, raises: [].} =
+  obj.payload.capabilityCb = cb
+func `onDone=`*(obj: TabletTool, cb: TabletToolDoneCallback) {.inline, raises: [].} =
+  obj.payload.doneCb = cb
+func `onRemoved=`*(
+    obj: TabletTool, cb: TabletToolRemovedCallback
+) {.inline, raises: [].} =
+  obj.payload.removedCb = cb
+func `onProximityIn=`*(
+    obj: TabletTool, cb: TabletToolProximityInCallback
+) {.inline, raises: [].} =
+  obj.payload.proximity_inCb = cb
+func `onProximityOut=`*(
+    obj: TabletTool, cb: TabletToolProximityOutCallback
+) {.inline, raises: [].} =
+  obj.payload.proximity_outCb = cb
+func `onDown=`*(obj: TabletTool, cb: TabletToolDownCallback) {.inline, raises: [].} =
+  obj.payload.downCb = cb
+func `onUp=`*(obj: TabletTool, cb: TabletToolUpCallback) {.inline, raises: [].} =
+  obj.payload.upCb = cb
+func `onMotion=`*(
+    obj: TabletTool, cb: TabletToolMotionCallback
+) {.inline, raises: [].} =
+  obj.payload.motionCb = cb
+func `onPressure=`*(
+    obj: TabletTool, cb: TabletToolPressureCallback
+) {.inline, raises: [].} =
+  obj.payload.pressureCb = cb
+func `onDistance=`*(
+    obj: TabletTool, cb: TabletToolDistanceCallback
+) {.inline, raises: [].} =
+  obj.payload.distanceCb = cb
+func `onTilt=`*(obj: TabletTool, cb: TabletToolTiltCallback) {.inline, raises: [].} =
+  obj.payload.tiltCb = cb
+func `onRotation=`*(
+    obj: TabletTool, cb: TabletToolRotationCallback
+) {.inline, raises: [].} =
+  obj.payload.rotationCb = cb
+func `onSlider=`*(
+    obj: TabletTool, cb: TabletToolSliderCallback
+) {.inline, raises: [].} =
+  obj.payload.sliderCb = cb
+func `onWheel=`*(obj: TabletTool, cb: TabletToolWheelCallback) {.inline, raises: [].} =
+  obj.payload.wheelCb = cb
+func `onButton=`*(
+    obj: TabletTool, cb: TabletToolButtonCallback
+) {.inline, raises: [].} =
+  obj.payload.buttonCb = cb
+func `onFrame=`*(obj: TabletTool, cb: TabletToolFrameCallback) {.inline, raises: [].} =
+  obj.payload.frameCb = cb
+
+# wrapgen: start emitting request wrappers
+
+proc setCursor*(
+    obj: TabletTool, Serial: uint32, Surface: Surface, HotspotX: int32, HotspotY: int32
+) =
+  ## =====
+  ## set the tablet tool's surface
+  ## =====
+  ## Sets the surface of the cursor used for this tool on the given tablet. This request only takes effect if the tool is in proximity of one of the requesting client's surfaces or the surface parameter is the current pointer surface. If there was a previous surface set with this request it is replaced. If surface is NULL, the cursor image is hidden. The parameters hotspot_x and hotspot_y define the position of the pointer surface relative to the pointer location. Its top-left corner is always at (x, y) - (hotspot_x, hotspot_y), where (x, y) are the coordinates of the pointer location, in surface-local coordinates. On surface.attach requests to the pointer surface, hotspot_x and hotspot_y are decremented by the x and y parameters passed to the request. Attach must be confirmed by wl_surface.commit as usual. The hotspot can also be updated by passing the currently set pointer surface to this request with new values for hotspot_x and hotspot_y. The current and pending input regions of the wl_surface are cleared, and wl_surface.set_input_region is ignored until the wl_surface is no longer used as the cursor. When the use as a cursor ends, the current and pending input regions become undefined, and the wl_surface is unmapped. This request gives the surface the role of a zwp_tablet_tool_v2 cursor. A surface may only ever be used as the cursor surface for one zwp_tablet_tool_v2. If the surface already has another role or has previously been used as cursor surface for a different tool, a protocol error is raised.
+  zwp_tablet_tool_v2_set_cursor(obj.handle, Serial, Surface.handle, HotspotX, HotspotY)
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
-converter shim0*(v: Type): uint32 = cast[uint32](v)
-converter shim1*(v: Capability): uint32 = cast[uint32](v)
-converter shim2*(v: Button_state): uint32 = cast[uint32](v)
-converter shim3*(v: Error): uint32 = cast[uint32](v)
+converter shim0*(v: Type): uint32 =
+  cast[uint32](v)
+
+converter shim1*(v: Capability): uint32 =
+  cast[uint32](v)
+
+converter shim2*(v: Button_state): uint32 =
+  cast[uint32](v)
+
+converter shim3*(v: Error): uint32 =
+  cast[uint32](v)
+
 # wrapgen: end emitting enum shims

@@ -4,19 +4,36 @@
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import pkg/nayland/bindings/protocols/[core, tablet_v2]
 import pkg/nayland/types/protocols/core/prelude
+import pkg/nayland/types/protocols/tablet/[dial, ring, strip]
 # wrapgen: begin emitting interface structures
 type
   TabletPadGroupObj* = object
     handle*: ptr zwp_tablet_pad_group_v2
+    payload: TabletPadGroupPayload
+
+  TabletPadGroupPayload = ref object
+    buttonsCb: TabletPadGroupButtonsCallback
+    ringCb: TabletPadGroupRingCallback
+    stripCb: TabletPadGroupStripCallback
+    modesCb: TabletPadGroupModesCallback
+    doneCb: TabletPadGroupDoneCallback
+    mode_switchCb: TabletPadGroupModeSwitchCallback
+    dialCb: TabletPadGroupDialCallback
 
   TabletPadGroup* = ref TabletPadGroupObj
     ## =====
-    ## dial announced
+    ## a set of buttons, rings and strips
     ## =====
-    ## Sent on zwp_tablet_pad_v2 initialization to announce available dials. One event is sent for each dial available on this pad group. This event is sent in the initial burst of events before the zwp_tablet_pad_group_v2.done event.
+    ## A pad group describes a distinct (sub)set of buttons, rings and strips present in the tablet. The criteria of this grouping is usually positional, eg. if a tablet has buttons on the left and right side, 2 groups will be presented. The physical arrangement of groups is undisclosed and may change on the fly. Pad groups will announce their features during pad initialization. Between the corresponding zwp_tablet_pad_v2.group event and zwp_tablet_pad_group_v2.done, the pad group will announce the buttons, rings and strips contained in it, plus the number of supported modes. Modes are a mechanism to allow multiple groups of actions for every element in the pad group. The number of groups and available modes in each is persistent across device plugs. The current mode is user-switchable, it will be announced through the zwp_tablet_pad_group_v2.mode_switch event both whenever it is switched, and after zwp_tablet_pad_v2.enter. The current mode logically applies to all elements in the pad group, although it is at clients' discretion whether to actually perform different actions, and/or issue the respective .set_feedback requests to notify the compositor. See the zwp_tablet_pad_group_v2.mode_switch event for more details.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
+  TabletPadGroupButtonsCallback* = proc(buttons: seq[uint32])
+  TabletPadGroupRingCallback* = proc(ring: TabletPadRing)
+  TabletPadGroupStripCallback* = proc(strip: TabletPadStrip)
+  TabletPadGroupModesCallback* = proc(modes: uint32)
+  TabletPadGroupDoneCallback* = proc()
+  TabletPadGroupModeSwitchCallback* = proc(time: uint32, serial: uint32, mode: uint32)
+  TabletPadGroupDialCallback* = proc(dial: TabletPadDial)
+
 proc `=destroy`*(obj: TabletPadGroupObj) =
   ## =====
   ## destroy the pad object
@@ -24,9 +41,6 @@ proc `=destroy`*(obj: TabletPadGroupObj) =
   ## Destroy the zwp_tablet_pad_group_v2 object. Objects created from this object are unaffected and should be destroyed separately.
   zwp_tablet_pad_group_v2_destroy(obj.handle)
 
-
-
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletPadGroup*(raw: ptr zwp_tablet_pad_group_v2 | pointer): TabletPadGroup =
   ## Instantiate a TabletPadGroup using its low-level libwayland handle.
@@ -34,8 +48,10 @@ func initTabletPadGroup*(raw: ptr zwp_tablet_pad_group_v2 | pointer): TabletPadG
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletPadGroup() was given an uninitialized handle!")
-  
-  TabletPadGroup(handle: cast[ptr zwp_tablet_pad_group_v2](raw))
+
+  TabletPadGroup(
+    handle: cast[ptr zwp_tablet_pad_group_v2](raw), payload: TabletPadGroupPayload()
+  )
 
 func newTabletPadGroup*(raw: ptr zwp_tablet_pad_group_v2): TabletPadGroup =
   ## Instantiate a TabletPadGroup using its low-level libwayland handle.
@@ -43,10 +59,120 @@ func newTabletPadGroup*(raw: ptr zwp_tablet_pad_group_v2): TabletPadGroup =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletPadGroup() was given an uninitialized handle!")
-  
-  TabletPadGroup(handle: raw)
+
+  TabletPadGroup(handle: raw, payload: TabletPadGroupPayload())
 
 # wrapgen: end emitting constructor routines
 
+let listener {.global.} = zwp_tablet_pad_group_v2_listener(
+  buttons: proc(
+      data: pointer, this: ptr zwp_tablet_pad_group_v2, buttons: ptr wl_array
+  ) {.cdecl.} =
+    let payload = cast[TabletPadGroupPayload](data)
+    if payload.buttonsCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'buttons'!\n")
+      return
+
+    var buttonsVec = newSeq[uint32](buttons.size)
+    for i in 0 ..< buttons.size:
+      buttonsVec[i] = cast[ptr UncheckedArray[uint32]](buttons.data)[i]
+
+    payload.buttonsCb(ensureMove(buttonsVec)),
+  ring: proc(
+      data: pointer, this: ptr zwp_tablet_pad_group_v2, ring: ptr zwp_tablet_pad_ring_v2
+  ) {.cdecl.} =
+    let payload = cast[TabletPadGroupPayload](data)
+    if payload.ringCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'ring'!\n")
+      return
+
+    payload.ringCb(initTabletPadRing(ring)),
+  strip: proc(
+      data: pointer,
+      this: ptr zwp_tablet_pad_group_v2,
+      strip: ptr zwp_tablet_pad_strip_v2,
+  ) {.cdecl.} =
+    let payload = cast[TabletPadGroupPayload](data)
+    if payload.stripCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'strip'!\n")
+      return
+
+    payload.stripCb(initTabletPadStrip(strip)),
+  modes: proc(
+      data: pointer, this: ptr zwp_tablet_pad_group_v2, modes: uint32
+  ) {.cdecl.} =
+    let payload = cast[TabletPadGroupPayload](data)
+    if payload.modesCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'modes'!\n")
+      return
+
+    payload.modesCb(modes),
+  done: proc(data: pointer, this: ptr zwp_tablet_pad_group_v2) {.cdecl.} =
+    let payload = cast[TabletPadGroupPayload](data)
+    if payload.doneCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'done'!\n")
+      return
+
+    payload.doneCb(),
+  mode_switch: proc(
+      data: pointer,
+      this: ptr zwp_tablet_pad_group_v2,
+      time: uint32,
+      serial: uint32,
+      mode: uint32,
+  ) {.cdecl.} =
+    let payload = cast[TabletPadGroupPayload](data)
+    if payload.mode_switchCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'mode_switch'!\n")
+      return
+
+    payload.mode_switchCb(time, serial, mode),
+  dial: proc(
+      data: pointer, this: ptr zwp_tablet_pad_group_v2, dial: ptr zwp_tablet_pad_dial_v2
+  ) {.cdecl.} =
+    let payload = cast[TabletPadGroupPayload](data)
+    if payload.dialCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'dial'!\n")
+      return
+
+    payload.dialCb(initTabletPadDial(dial)),
+)
+proc attachCallbacks*(obj: TabletPadGroup) =
+  discard zwp_tablet_pad_group_v2_add_listener(
+    obj.handle, listener.addr, cast[pointer](obj.payload)
+  )
+
+func `onButtons=`*(
+    obj: TabletPadGroup, cb: TabletPadGroupButtonsCallback
+) {.inline, raises: [].} =
+  obj.payload.buttonsCb = cb
+func `onRing=`*(
+    obj: TabletPadGroup, cb: TabletPadGroupRingCallback
+) {.inline, raises: [].} =
+  obj.payload.ringCb = cb
+func `onStrip=`*(
+    obj: TabletPadGroup, cb: TabletPadGroupStripCallback
+) {.inline, raises: [].} =
+  obj.payload.stripCb = cb
+func `onModes=`*(
+    obj: TabletPadGroup, cb: TabletPadGroupModesCallback
+) {.inline, raises: [].} =
+  obj.payload.modesCb = cb
+func `onDone=`*(
+    obj: TabletPadGroup, cb: TabletPadGroupDoneCallback
+) {.inline, raises: [].} =
+  obj.payload.doneCb = cb
+func `onModeSwitch=`*(
+    obj: TabletPadGroup, cb: TabletPadGroupModeSwitchCallback
+) {.inline, raises: [].} =
+  obj.payload.mode_switchCb = cb
+func `onDial=`*(
+    obj: TabletPadGroup, cb: TabletPadGroupDialCallback
+) {.inline, raises: [].} =
+  obj.payload.dialCb = cb
+
+# wrapgen: start emitting request wrappers
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
 # wrapgen: end emitting enum shims

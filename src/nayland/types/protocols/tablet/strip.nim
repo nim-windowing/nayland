@@ -15,22 +15,24 @@ type
 
   TabletPadStripObj* = object
     handle*: ptr zwp_tablet_pad_strip_v2
+    payload: TabletPadStripPayload
 
   TabletPadStrip* = ref TabletPadStripObj
     ## =====
-    ## end of a strip event sequence
+    ## pad strip
     ## =====
-    ## Indicates the end of a set of events that represent one logical hardware strip event. A client is expected to accumulate the data in all events within the frame before proceeding. All zwp_tablet_pad_strip_v2 events before a zwp_tablet_pad_strip_v2.frame event belong logically together. For example, on termination of a finger interaction on a strip the compositor will send a zwp_tablet_pad_strip_v2.source event, a zwp_tablet_pad_strip_v2.stop event and a zwp_tablet_pad_strip_v2.frame event. A zwp_tablet_pad_strip_v2.frame event is sent for every logical event group, even if the group only contains a single zwp_tablet_pad_strip_v2 event. Specifically, a client may get a sequence: position, frame, position, frame, etc.
+    ## A linear interaction area, such as the strips found in Wacom Cintiq models. Events on a strip are logically grouped by the zwp_tablet_pad_strip_v2.frame event.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
+  TabletPadStripSourceCallback* = proc(source: uint32)
+  TabletPadStripPositionCallback* = proc(position: uint32)
+  TabletPadStripStopCallback* = proc()
+  TabletPadStripFrameCallback* = proc(time: uint32)
+  TabletPadStripPayload = ref object
+    sourceCb: TabletPadStripSourceCallback
+    positionCb: TabletPadStripPositionCallback
+    stopCb: TabletPadStripStopCallback
+    frameCb: TabletPadStripFrameCallback
 
-proc setFeedback*(obj: TabletPadStrip, Description: string, Serial: uint32) =
-  ## =====
-  ## set compositor feedback
-  ## =====
-  ## Requests the compositor to use the provided feedback string associated with this strip. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever the strip is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with the strip, and compositors may use this information to offer visual feedback about the button layout (eg. on-screen displays). The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this strip. Requests providing other serials than the most recent one will be ignored.
-  zwp_tablet_pad_strip_v2_set_feedback(obj.handle, Description, Serial)
 
 proc `=destroy`*(obj: TabletPadStripObj) =
   ## =====
@@ -40,8 +42,6 @@ proc `=destroy`*(obj: TabletPadStripObj) =
   zwp_tablet_pad_strip_v2_destroy(obj.handle)
 
 
-
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletPadStrip*(raw: ptr zwp_tablet_pad_strip_v2 | pointer): TabletPadStrip =
   ## Instantiate a TabletPadStrip using its low-level libwayland handle.
@@ -50,7 +50,7 @@ func initTabletPadStrip*(raw: ptr zwp_tablet_pad_strip_v2 | pointer): TabletPadS
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletPadStrip() was given an uninitialized handle!")
   
-  TabletPadStrip(handle: cast[ptr zwp_tablet_pad_strip_v2](raw))
+  TabletPadStrip(handle: cast[ptr zwp_tablet_pad_strip_v2](raw), payload: TabletPadStripPayload())
 
 func newTabletPadStrip*(raw: ptr zwp_tablet_pad_strip_v2): TabletPadStrip =
   ## Instantiate a TabletPadStrip using its low-level libwayland handle.
@@ -59,10 +59,63 @@ func newTabletPadStrip*(raw: ptr zwp_tablet_pad_strip_v2): TabletPadStrip =
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletPadStrip() was given an uninitialized handle!")
   
-  TabletPadStrip(handle: raw)
+  TabletPadStrip(handle: raw, payload: TabletPadStripPayload())
 
 # wrapgen: end emitting constructor routines
 
+
+let listener {.global.} =
+  zwp_tablet_pad_strip_v2_listener(
+    source: proc(data: pointer, this: ptr zwp_tablet_pad_strip_v2, source: uint32) {.cdecl.} =
+      let payload = cast[TabletPadStripPayload](data)
+      if payload.sourceCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'source'!\n")
+        return
+
+      payload.sourceCb(source)  ,    position: proc(data: pointer, this: ptr zwp_tablet_pad_strip_v2, position: uint32) {.cdecl.} =
+      let payload = cast[TabletPadStripPayload](data)
+      if payload.positionCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'position'!\n")
+        return
+
+      payload.positionCb(position)  ,    stop: proc(data: pointer, this: ptr zwp_tablet_pad_strip_v2) {.cdecl.} =
+      let payload = cast[TabletPadStripPayload](data)
+      if payload.stopCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'stop'!\n")
+        return
+
+      payload.stopCb()  ,    frame: proc(data: pointer, this: ptr zwp_tablet_pad_strip_v2, time: uint32) {.cdecl.} =
+      let payload = cast[TabletPadStripPayload](data)
+      if payload.frameCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'frame'!\n")
+        return
+
+      payload.frameCb(time)
+)
+proc attachCallbacks*(obj: TabletPadStrip) =
+  discard zwp_tablet_pad_strip_v2_add_listener(obj.handle, listener.addr, cast[pointer](obj.payload))
+
+func `onSource=`*(obj: TabletPadStrip, cb: TabletPadStripSourceCallback) {.inline, raises: [].} =
+  obj.payload.sourceCb = cb
+func `onPosition=`*(obj: TabletPadStrip, cb: TabletPadStripPositionCallback) {.inline, raises: [].} =
+  obj.payload.positionCb = cb
+func `onStop=`*(obj: TabletPadStrip, cb: TabletPadStripStopCallback) {.inline, raises: [].} =
+  obj.payload.stopCb = cb
+func `onFrame=`*(obj: TabletPadStrip, cb: TabletPadStripFrameCallback) {.inline, raises: [].} =
+  obj.payload.frameCb = cb
+
+# wrapgen: start emitting request wrappers
+
+proc setFeedback*(obj: TabletPadStrip, Description: cstring, Serial: uint32) =
+  ## =====
+  ## set compositor feedback
+  ## =====
+  ## Requests the compositor to use the provided feedback string associated with this strip. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever the strip is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with the strip, and compositors may use this information to offer visual feedback about the button layout (eg. on-screen displays). The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this strip. Requests providing other serials than the most recent one will be ignored.
+  zwp_tablet_pad_strip_v2_set_feedback(obj.handle, Description, Serial)
+
+
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
 converter shim0*(v: Source): uint32 = cast[uint32](v)
 # wrapgen: end emitting enum shims

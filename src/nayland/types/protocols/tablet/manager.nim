@@ -3,8 +3,8 @@
 ##
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import pkg/nayland/bindings/protocols/[core, tablet_v2]
-import
-  pkg/nayland/types/protocols/core/prelude, pkg/nayland/types/protocols/tablet/[seat]
+import pkg/nayland/types/protocols/core/prelude
+import pkg/nayland/types/protocols/tablet/seat
 # wrapgen: begin emitting interface structures
 type
   TabletManagerObj* = object
@@ -16,16 +16,6 @@ type
     ## =====
     ## An object that provides access to the graphics tablets available on this system. All tablets are associated with a seat, to get access to the actual tablets, use zwp_tablet_manager_v2.get_tablet_seat.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
-
-proc getTabletSeat*(obj: TabletManager, Seat: Seat): TabletSeat =
-  ## =====
-  ## get the tablet seat
-  ## =====
-  ## Get the zwp_tablet_seat_v2 object for the given seat. This object provides access to all graphics tablets in this seat.
-  initTabletSeat(zwp_tablet_manager_v2_get_tablet_seat(obj.handle, Seat.handle))
-
 proc `=destroy`*(obj: TabletManagerObj) =
   ## =====
   ## release the memory for the tablet manager object
@@ -33,7 +23,6 @@ proc `=destroy`*(obj: TabletManagerObj) =
   ## Destroy the zwp_tablet_manager_v2 object. Objects created from this object are unaffected and should be destroyed separately.
   zwp_tablet_manager_v2_destroy(obj.handle)
 
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletManager*(raw: ptr zwp_tablet_manager_v2 | pointer): TabletManager =
   ## Instantiate a TabletManager using its low-level libwayland handle.
@@ -55,5 +44,15 @@ func newTabletManager*(raw: ptr zwp_tablet_manager_v2): TabletManager =
 
 # wrapgen: end emitting constructor routines
 
+# wrapgen: start emitting request wrappers
+
+proc getTabletSeat*(obj: TabletManager, Seat: Seat): TabletSeat =
+  ## =====
+  ## get the tablet seat
+  ## =====
+  ## Get the zwp_tablet_seat_v2 object for the given seat. This object provides access to all graphics tablets in this seat.
+  initTabletSeat(zwp_tablet_manager_v2_get_tablet_seat(obj.handle, Seat.handle))
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
 # wrapgen: end emitting enum shims

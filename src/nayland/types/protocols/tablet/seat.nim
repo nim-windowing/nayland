@@ -4,19 +4,27 @@
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import pkg/nayland/bindings/protocols/[core, tablet_v2]
 import pkg/nayland/types/protocols/core/prelude
+import pkg/nayland/types/protocols/tablet/[pad, tablet, tool]
 # wrapgen: begin emitting interface structures
 type
   TabletSeatObj* = object
     handle*: ptr zwp_tablet_seat_v2
+    payload: TabletSeatPayload
 
   TabletSeat* = ref TabletSeatObj
     ## =====
-    ## new pad notification
+    ## controller object for graphic tablet devices of a seat
     ## =====
-    ## This event is sent whenever a new pad is known to the system. Typically, pads are physically attached to tablets and a pad_added event is sent immediately after the zwp_tablet_seat_v2.tablet_added. However, some standalone pad devices logically attach to tablets at runtime, and the client must wait for zwp_tablet_pad_v2.enter to know the tablet a pad is attached to. This event only provides the object id of the pad. All further features (buttons, strips, rings) are sent through the zwp_tablet_pad_v2 interface.
+    ## An object that provides access to the graphics tablets available on this seat. After binding to this interface, the compositor sends a set of zwp_tablet_seat_v2.tablet_added and zwp_tablet_seat_v2.tool_added events.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
+  TabletSeatTabletAddedCallback* = proc(id: Tablet)
+  TabletSeatToolAddedCallback* = proc(id: TabletTool)
+  TabletSeatPadAddedCallback* = proc(id: TabletPad)
+  TabletSeatPayload = ref object
+    tablet_addedCb: TabletSeatTabletAddedCallback
+    tool_addedCb: TabletSeatToolAddedCallback
+    pad_addedCb: TabletSeatPadAddedCallback
+
 proc `=destroy`*(obj: TabletSeatObj) =
   ## =====
   ## release the memory for the tablet seat object
@@ -24,9 +32,6 @@ proc `=destroy`*(obj: TabletSeatObj) =
   ## Destroy the zwp_tablet_seat_v2 object. Objects created from this object are unaffected and should be destroyed separately.
   zwp_tablet_seat_v2_destroy(obj.handle)
 
-
-
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletSeat*(raw: ptr zwp_tablet_seat_v2 | pointer): TabletSeat =
   ## Instantiate a TabletSeat using its low-level libwayland handle.
@@ -34,8 +39,8 @@ func initTabletSeat*(raw: ptr zwp_tablet_seat_v2 | pointer): TabletSeat =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletSeat() was given an uninitialized handle!")
-  
-  TabletSeat(handle: cast[ptr zwp_tablet_seat_v2](raw))
+
+  TabletSeat(handle: cast[ptr zwp_tablet_seat_v2](raw), payload: TabletSeatPayload())
 
 func newTabletSeat*(raw: ptr zwp_tablet_seat_v2): TabletSeat =
   ## Instantiate a TabletSeat using its low-level libwayland handle.
@@ -43,10 +48,60 @@ func newTabletSeat*(raw: ptr zwp_tablet_seat_v2): TabletSeat =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletSeat() was given an uninitialized handle!")
-  
-  TabletSeat(handle: raw)
+
+  TabletSeat(handle: raw, payload: TabletSeatPayload())
 
 # wrapgen: end emitting constructor routines
 
+let listener {.global.} = zwp_tablet_seat_v2_listener(
+  tablet_added: proc(
+      data: pointer, this: ptr zwp_tablet_seat_v2, id: ptr zwp_tablet_v2
+  ) {.cdecl.} =
+    let payload = cast[TabletSeatPayload](data)
+    if payload.tablet_addedCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'tablet_added'!\n")
+      return
+
+    payload.tablet_addedCb(initTablet(id)),
+  tool_added: proc(
+      data: pointer, this: ptr zwp_tablet_seat_v2, id: ptr zwp_tablet_tool_v2
+  ) {.cdecl.} =
+    let payload = cast[TabletSeatPayload](data)
+    if payload.tool_addedCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'tool_added'!\n")
+      return
+
+    payload.tool_addedCb(initTabletTool(id)),
+  pad_added: proc(
+      data: pointer, this: ptr zwp_tablet_seat_v2, id: ptr zwp_tablet_pad_v2
+  ) {.cdecl.} =
+    let payload = cast[TabletSeatPayload](data)
+    if payload.pad_addedCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'pad_added'!\n")
+      return
+
+    payload.pad_addedCb(initTabletPad(id)),
+)
+proc attachCallbacks*(obj: TabletSeat) =
+  discard zwp_tablet_seat_v2_add_listener(
+    obj.handle, listener.addr, cast[pointer](obj.payload)
+  )
+
+func `onTabletAdded=`*(
+    obj: TabletSeat, cb: TabletSeatTabletAddedCallback
+) {.inline, raises: [].} =
+  obj.payload.tablet_addedCb = cb
+func `onToolAdded=`*(
+    obj: TabletSeat, cb: TabletSeatToolAddedCallback
+) {.inline, raises: [].} =
+  obj.payload.tool_addedCb = cb
+func `onPadAdded=`*(
+    obj: TabletSeat, cb: TabletSeatPadAddedCallback
+) {.inline, raises: [].} =
+  obj.payload.pad_addedCb = cb
+
+# wrapgen: start emitting request wrappers
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
 # wrapgen: end emitting enum shims

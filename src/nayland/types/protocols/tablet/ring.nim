@@ -15,22 +15,24 @@ type
 
   TabletPadRingObj* = object
     handle*: ptr zwp_tablet_pad_ring_v2
+    payload: TabletPadRingPayload
 
   TabletPadRing* = ref TabletPadRingObj
     ## =====
-    ## end of a ring event sequence
+    ## pad ring
     ## =====
-    ## Indicates the end of a set of ring events that logically belong together. A client is expected to accumulate the data in all events within the frame before proceeding. All zwp_tablet_pad_ring_v2 events before a zwp_tablet_pad_ring_v2.frame event belong logically together. For example, on termination of a finger interaction on a ring the compositor will send a zwp_tablet_pad_ring_v2.source event, a zwp_tablet_pad_ring_v2.stop event and a zwp_tablet_pad_ring_v2.frame event. A zwp_tablet_pad_ring_v2.frame event is sent for every logical event group, even if the group only contains a single zwp_tablet_pad_ring_v2 event. Specifically, a client may get a sequence: angle, frame, angle, frame, etc.
+    ## A circular interaction area, such as the touch ring on the Wacom Intuos Pro series tablets. Events on a ring are logically grouped by the zwp_tablet_pad_ring_v2.frame event.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
+  TabletPadRingSourceCallback* = proc(source: uint32)
+  TabletPadRingAngleCallback* = proc(degrees: float)
+  TabletPadRingStopCallback* = proc()
+  TabletPadRingFrameCallback* = proc(time: uint32)
+  TabletPadRingPayload = ref object
+    sourceCb: TabletPadRingSourceCallback
+    angleCb: TabletPadRingAngleCallback
+    stopCb: TabletPadRingStopCallback
+    frameCb: TabletPadRingFrameCallback
 
-proc setFeedback*(obj: TabletPadRing, Description: string, Serial: uint32) =
-  ## =====
-  ## set compositor feedback
-  ## =====
-  ## Request that the compositor use the provided feedback string associated with this ring. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever the ring is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with the ring; compositors may use this information to offer visual feedback about the button layout (eg. on-screen displays). The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this ring. Requests providing other serials than the most recent one will be ignored.
-  zwp_tablet_pad_ring_v2_set_feedback(obj.handle, Description, Serial)
 
 proc `=destroy`*(obj: TabletPadRingObj) =
   ## =====
@@ -40,8 +42,6 @@ proc `=destroy`*(obj: TabletPadRingObj) =
   zwp_tablet_pad_ring_v2_destroy(obj.handle)
 
 
-
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletPadRing*(raw: ptr zwp_tablet_pad_ring_v2 | pointer): TabletPadRing =
   ## Instantiate a TabletPadRing using its low-level libwayland handle.
@@ -50,7 +50,7 @@ func initTabletPadRing*(raw: ptr zwp_tablet_pad_ring_v2 | pointer): TabletPadRin
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletPadRing() was given an uninitialized handle!")
   
-  TabletPadRing(handle: cast[ptr zwp_tablet_pad_ring_v2](raw))
+  TabletPadRing(handle: cast[ptr zwp_tablet_pad_ring_v2](raw), payload: TabletPadRingPayload())
 
 func newTabletPadRing*(raw: ptr zwp_tablet_pad_ring_v2): TabletPadRing =
   ## Instantiate a TabletPadRing using its low-level libwayland handle.
@@ -59,10 +59,63 @@ func newTabletPadRing*(raw: ptr zwp_tablet_pad_ring_v2): TabletPadRing =
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletPadRing() was given an uninitialized handle!")
   
-  TabletPadRing(handle: raw)
+  TabletPadRing(handle: raw, payload: TabletPadRingPayload())
 
 # wrapgen: end emitting constructor routines
 
+
+let listener {.global.} =
+  zwp_tablet_pad_ring_v2_listener(
+    source: proc(data: pointer, this: ptr zwp_tablet_pad_ring_v2, source: uint32) {.cdecl.} =
+      let payload = cast[TabletPadRingPayload](data)
+      if payload.sourceCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'source'!\n")
+        return
+
+      payload.sourceCb(source)  ,    angle: proc(data: pointer, this: ptr zwp_tablet_pad_ring_v2, degrees: wl_fixed) {.cdecl.} =
+      let payload = cast[TabletPadRingPayload](data)
+      if payload.angleCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'angle'!\n")
+        return
+
+      payload.angleCb(degrees.toFloat)  ,    stop: proc(data: pointer, this: ptr zwp_tablet_pad_ring_v2) {.cdecl.} =
+      let payload = cast[TabletPadRingPayload](data)
+      if payload.stopCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'stop'!\n")
+        return
+
+      payload.stopCb()  ,    frame: proc(data: pointer, this: ptr zwp_tablet_pad_ring_v2, time: uint32) {.cdecl.} =
+      let payload = cast[TabletPadRingPayload](data)
+      if payload.frameCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'frame'!\n")
+        return
+
+      payload.frameCb(time)
+)
+proc attachCallbacks*(obj: TabletPadRing) =
+  discard zwp_tablet_pad_ring_v2_add_listener(obj.handle, listener.addr, cast[pointer](obj.payload))
+
+func `onSource=`*(obj: TabletPadRing, cb: TabletPadRingSourceCallback) {.inline, raises: [].} =
+  obj.payload.sourceCb = cb
+func `onAngle=`*(obj: TabletPadRing, cb: TabletPadRingAngleCallback) {.inline, raises: [].} =
+  obj.payload.angleCb = cb
+func `onStop=`*(obj: TabletPadRing, cb: TabletPadRingStopCallback) {.inline, raises: [].} =
+  obj.payload.stopCb = cb
+func `onFrame=`*(obj: TabletPadRing, cb: TabletPadRingFrameCallback) {.inline, raises: [].} =
+  obj.payload.frameCb = cb
+
+# wrapgen: start emitting request wrappers
+
+proc setFeedback*(obj: TabletPadRing, Description: cstring, Serial: uint32) =
+  ## =====
+  ## set compositor feedback
+  ## =====
+  ## Request that the compositor use the provided feedback string associated with this ring. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever the ring is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with the ring; compositors may use this information to offer visual feedback about the button layout (eg. on-screen displays). The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this ring. Requests providing other serials than the most recent one will be ignored.
+  zwp_tablet_pad_ring_v2_set_feedback(obj.handle, Description, Serial)
+
+
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
 converter shim0*(v: Source): uint32 = cast[uint32](v)
 # wrapgen: end emitting enum shims

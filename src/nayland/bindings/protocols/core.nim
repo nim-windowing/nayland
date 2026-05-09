@@ -2,6 +2,7 @@
 ##
 ## Copyright (C) 2025 Trayambak Rai (xtrayambak at disroot dot org)
 import pkg/nayland/bindings/libwayland
+export libwayland.wl_fixed, libwayland.wl_array
 
 {.push header: "<wayland-client-protocol.h>".}
 

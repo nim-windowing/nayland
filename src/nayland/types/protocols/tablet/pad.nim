@@ -4,6 +4,7 @@
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import pkg/nayland/bindings/protocols/[core, tablet_v2]
 import pkg/nayland/types/protocols/core/prelude
+import pkg/nayland/types/protocols/tablet/[tablet, group]
 # wrapgen: begin emitting interface structures
 type
   Button_state* {.pure, size: sizeof(uint32).} = enum
@@ -16,22 +17,31 @@ type
 
   TabletPadObj* = object
     handle*: ptr zwp_tablet_pad_v2
+    payload: TabletPadPayload
 
   TabletPad* = ref TabletPadObj
     ## =====
-    ## pad removed event
+    ## a set of buttons, rings, strips and dials
     ## =====
-    ## Sent when the pad has been removed from the system. When a tablet is removed its pad(s) will be removed too. When this event is received, the client must destroy all rings, strips and groups that were offered by this pad, and issue zwp_tablet_pad_v2.destroy the pad itself.
+    ## A pad device is a set of buttons, rings, strips and dials usually physically present on the tablet device itself. Some exceptions exist where the pad device is physically detached, e.g. the Wacom ExpressKey Remote. Pad devices have no axes that control the cursor and are generally auxiliary devices to the tool devices used on the tablet surface. A pad device has a number of static characteristics, e.g. the number of rings. These capabilities are sent in an event sequence after the zwp_tablet_seat_v2.pad_added event before any actual events from this pad. This initial event sequence is terminated by a zwp_tablet_pad_v2.done event. All pad features (buttons, rings, strips and dials) are logically divided into groups and all pads have at least one group. The available groups are notified through the zwp_tablet_pad_v2.group event; the compositor will emit one event per group before emitting zwp_tablet_pad_v2.done. Groups may have multiple modes. Modes allow clients to map multiple actions to a single pad feature. Only one mode can be active per group, although different groups may have different active modes.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
-
-proc setFeedback*(obj: TabletPad, Button: uint32, Description: string, Serial: uint32) =
-  ## =====
-  ## set compositor feedback
-  ## =====
-  ## Requests the compositor to use the provided feedback string associated with this button. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever a button is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with each button, and compositors may use this information to offer visual feedback on the button layout (e.g. on-screen displays). Button indices start at 0. Setting the feedback string on a button that is reserved by the compositor (i.e. not belonging to any zwp_tablet_pad_group_v2) does not generate an error but the compositor is free to ignore the request. The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this button. Requests providing other serials than the most recent one will be ignored.
-  zwp_tablet_pad_v2_set_feedback(obj.handle, Button, Description, Serial)
+  TabletPadGroupCallback* = proc(pad_group: TabletPadGroup)
+  TabletPadPathCallback* = proc(path: cstring)
+  TabletPadButtonsCallback* = proc(buttons: uint32)
+  TabletPadDoneCallback* = proc()
+  TabletPadButtonCallback* = proc(time: uint32, button: uint32, state: uint32)
+  TabletPadEnterCallback* = proc(serial: uint32, tablet: Tablet, surface: Surface)
+  TabletPadLeaveCallback* = proc(serial: uint32, surface: Surface)
+  TabletPadRemovedCallback* = proc()
+  TabletPadPayload = ref object
+    groupCb: TabletPadGroupCallback
+    pathCb: TabletPadPathCallback
+    buttonsCb: TabletPadButtonsCallback
+    doneCb: TabletPadDoneCallback
+    buttonCb: TabletPadButtonCallback
+    enterCb: TabletPadEnterCallback
+    leaveCb: TabletPadLeaveCallback
+    removedCb: TabletPadRemovedCallback
 
 proc `=destroy`*(obj: TabletPadObj) =
   ## =====
@@ -40,9 +50,6 @@ proc `=destroy`*(obj: TabletPadObj) =
   ## Destroy the zwp_tablet_pad_v2 object. Objects created from this object are unaffected and should be destroyed separately.
   zwp_tablet_pad_v2_destroy(obj.handle)
 
-
-
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletPad*(raw: ptr zwp_tablet_pad_v2 | pointer): TabletPad =
   ## Instantiate a TabletPad using its low-level libwayland handle.
@@ -50,8 +57,8 @@ func initTabletPad*(raw: ptr zwp_tablet_pad_v2 | pointer): TabletPad =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletPad() was given an uninitialized handle!")
-  
-  TabletPad(handle: cast[ptr zwp_tablet_pad_v2](raw))
+
+  TabletPad(handle: cast[ptr zwp_tablet_pad_v2](raw), payload: TabletPadPayload())
 
 func newTabletPad*(raw: ptr zwp_tablet_pad_v2): TabletPad =
   ## Instantiate a TabletPad using its low-level libwayland handle.
@@ -59,11 +66,128 @@ func newTabletPad*(raw: ptr zwp_tablet_pad_v2): TabletPad =
   ## **Note**: This routine does not accept NULL pointers (there is no reason to), and WILL crash upon being given one!
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletPad() was given an uninitialized handle!")
-  
-  TabletPad(handle: raw)
+
+  TabletPad(handle: raw, payload: TabletPadPayload())
 
 # wrapgen: end emitting constructor routines
 
+let listener {.global.} = zwp_tablet_pad_v2_listener(
+  group: proc(
+      data: pointer, this: ptr zwp_tablet_pad_v2, pad_group: ptr zwp_tablet_pad_group_v2
+  ) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.groupCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'group'!\n")
+      return
+
+    payload.groupCb(initTabletPadGroup(pad_group)),
+  path: proc(data: pointer, this: ptr zwp_tablet_pad_v2, path: cstring) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.pathCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'path'!\n")
+      return
+
+    payload.pathCb(path),
+  buttons: proc(data: pointer, this: ptr zwp_tablet_pad_v2, buttons: uint32) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.buttonsCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'buttons'!\n")
+      return
+
+    payload.buttonsCb(buttons),
+  done: proc(data: pointer, this: ptr zwp_tablet_pad_v2) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.doneCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'done'!\n")
+      return
+
+    payload.doneCb(),
+  button: proc(
+      data: pointer,
+      this: ptr zwp_tablet_pad_v2,
+      time: uint32,
+      button: uint32,
+      state: uint32,
+  ) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.buttonCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'button'!\n")
+      return
+
+    payload.buttonCb(time, button, state),
+  enter: proc(
+      data: pointer,
+      this: ptr zwp_tablet_pad_v2,
+      serial: uint32,
+      tablet: ptr zwp_tablet_v2,
+      surface: ptr wl_surface,
+  ) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.enterCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'enter'!\n")
+      return
+
+    payload.enterCb(serial, initTablet(tablet), newSurface(surface)),
+  leave: proc(
+      data: pointer,
+      this: ptr zwp_tablet_pad_v2,
+      serial: uint32,
+      surface: ptr wl_surface,
+  ) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.leaveCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'leave'!\n")
+      return
+
+    payload.leaveCb(serial, newSurface(surface)),
+  removed: proc(data: pointer, this: ptr zwp_tablet_pad_v2) {.cdecl.} =
+    let payload = cast[TabletPadPayload](data)
+    if payload.removedCb == nil:
+      write(stderr, "[nayland] handler not attached for event 'removed'!\n")
+      return
+
+    payload.removedCb(),
+)
+proc attachCallbacks*(obj: TabletPad) =
+  discard zwp_tablet_pad_v2_add_listener(
+    obj.handle, listener.addr, cast[pointer](obj.payload)
+  )
+
+func `onGroup=`*(obj: TabletPad, cb: TabletPadGroupCallback) {.inline, raises: [].} =
+  obj.payload.groupCb = cb
+func `onPath=`*(obj: TabletPad, cb: TabletPadPathCallback) {.inline, raises: [].} =
+  obj.payload.pathCb = cb
+func `onButtons=`*(
+    obj: TabletPad, cb: TabletPadButtonsCallback
+) {.inline, raises: [].} =
+  obj.payload.buttonsCb = cb
+func `onDone=`*(obj: TabletPad, cb: TabletPadDoneCallback) {.inline, raises: [].} =
+  obj.payload.doneCb = cb
+func `onButton=`*(obj: TabletPad, cb: TabletPadButtonCallback) {.inline, raises: [].} =
+  obj.payload.buttonCb = cb
+func `onEnter=`*(obj: TabletPad, cb: TabletPadEnterCallback) {.inline, raises: [].} =
+  obj.payload.enterCb = cb
+func `onLeave=`*(obj: TabletPad, cb: TabletPadLeaveCallback) {.inline, raises: [].} =
+  obj.payload.leaveCb = cb
+func `onRemoved=`*(
+    obj: TabletPad, cb: TabletPadRemovedCallback
+) {.inline, raises: [].} =
+  obj.payload.removedCb = cb
+
+# wrapgen: start emitting request wrappers
+
+proc setFeedback*(
+    obj: TabletPad, Button: uint32, Description: cstring, Serial: uint32
+) =
+  ## =====
+  ## set compositor feedback
+  ## =====
+  ## Requests the compositor to use the provided feedback string associated with this button. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever a button is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with each button, and compositors may use this information to offer visual feedback on the button layout (e.g. on-screen displays). Button indices start at 0. Setting the feedback string on a button that is reserved by the compositor (i.e. not belonging to any zwp_tablet_pad_group_v2) does not generate an error but the compositor is free to ignore the request. The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this button. Requests providing other serials than the most recent one will be ignored.
+  zwp_tablet_pad_v2_set_feedback(obj.handle, Button, Description, Serial)
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
-converter shim0*(v: Button_state): uint32 = cast[uint32](v)
+converter shim0*(v: Button_state): uint32 =
+  cast[uint32](v)
+
 # wrapgen: end emitting enum shims

@@ -8,22 +8,20 @@ import pkg/nayland/types/protocols/core/prelude
 type
   TabletPadDialObj* = object
     handle*: ptr zwp_tablet_pad_dial_v2
+    payload: TabletPadDialPayload
 
   TabletPadDial* = ref TabletPadDialObj
     ## =====
-    ## end of a dial event sequence
+    ## pad dial
     ## =====
-    ## Indicates the end of a set of events that represent one logical hardware dial event. A client is expected to accumulate the data in all events within the frame before proceeding. All zwp_tablet_pad_dial_v2 events before a zwp_tablet_pad_dial_v2.frame event belong logically together. A zwp_tablet_pad_dial_v2.frame event is sent for every logical event group, even if the group only contains a single zwp_tablet_pad_dial_v2 event. Specifically, a client may get a sequence: delta, frame, delta, frame, etc.
+    ## A rotary control, e.g. a dial or a wheel. Events on a dial are logically grouped by the zwp_tablet_pad_dial_v2.frame event.
 
-# wrapgen: end emitting interface structures
-# wrapgen: start emitting request wrappers
+  TabletPadDialDeltaCallback* = proc(value120: int32)
+  TabletPadDialFrameCallback* = proc(time: uint32)
+  TabletPadDialPayload = ref object
+    deltaCb: TabletPadDialDeltaCallback
+    frameCb: TabletPadDialFrameCallback
 
-proc setFeedback*(obj: TabletPadDial, Description: string, Serial: uint32) =
-  ## =====
-  ## set compositor feedback
-  ## =====
-  ## Requests the compositor to use the provided feedback string associated with this dial. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever the dial is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with the dial, and compositors may use this information to offer visual feedback about the button layout (eg. on-screen displays). The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this dial. Requests providing other serials than the most recent one will be ignored.
-  zwp_tablet_pad_dial_v2_set_feedback(obj.handle, Description, Serial)
 
 proc `=destroy`*(obj: TabletPadDialObj) =
   ## =====
@@ -33,8 +31,6 @@ proc `=destroy`*(obj: TabletPadDialObj) =
   zwp_tablet_pad_dial_v2_destroy(obj.handle)
 
 
-
-# wrapgen: end emitting request wrappers
 # wrapgen: begin emitting constructor routines
 func initTabletPadDial*(raw: ptr zwp_tablet_pad_dial_v2 | pointer): TabletPadDial =
   ## Instantiate a TabletPadDial using its low-level libwayland handle.
@@ -43,7 +39,7 @@ func initTabletPadDial*(raw: ptr zwp_tablet_pad_dial_v2 | pointer): TabletPadDia
   when not defined(danger):
     assert(raw != nil, "BUG: initTabletPadDial() was given an uninitialized handle!")
   
-  TabletPadDial(handle: cast[ptr zwp_tablet_pad_dial_v2](raw))
+  TabletPadDial(handle: cast[ptr zwp_tablet_pad_dial_v2](raw), payload: TabletPadDialPayload())
 
 func newTabletPadDial*(raw: ptr zwp_tablet_pad_dial_v2): TabletPadDial =
   ## Instantiate a TabletPadDial using its low-level libwayland handle.
@@ -52,9 +48,46 @@ func newTabletPadDial*(raw: ptr zwp_tablet_pad_dial_v2): TabletPadDial =
   when not defined(danger):
     assert(raw != nil, "BUG: newTabletPadDial() was given an uninitialized handle!")
   
-  TabletPadDial(handle: raw)
+  TabletPadDial(handle: raw, payload: TabletPadDialPayload())
 
 # wrapgen: end emitting constructor routines
 
+
+let listener {.global.} =
+  zwp_tablet_pad_dial_v2_listener(
+    delta: proc(data: pointer, this: ptr zwp_tablet_pad_dial_v2, value120: int32) {.cdecl.} =
+      let payload = cast[TabletPadDialPayload](data)
+      if payload.deltaCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'delta'!\n")
+        return
+
+      payload.deltaCb(value120)  ,    frame: proc(data: pointer, this: ptr zwp_tablet_pad_dial_v2, time: uint32) {.cdecl.} =
+      let payload = cast[TabletPadDialPayload](data)
+      if payload.frameCb == nil:
+        write(stderr, "[nayland] handler not attached for event 'frame'!\n")
+        return
+
+      payload.frameCb(time)
+)
+proc attachCallbacks*(obj: TabletPadDial) =
+  discard zwp_tablet_pad_dial_v2_add_listener(obj.handle, listener.addr, cast[pointer](obj.payload))
+
+func `onDelta=`*(obj: TabletPadDial, cb: TabletPadDialDeltaCallback) {.inline, raises: [].} =
+  obj.payload.deltaCb = cb
+func `onFrame=`*(obj: TabletPadDial, cb: TabletPadDialFrameCallback) {.inline, raises: [].} =
+  obj.payload.frameCb = cb
+
+# wrapgen: start emitting request wrappers
+
+proc setFeedback*(obj: TabletPadDial, Description: cstring, Serial: uint32) =
+  ## =====
+  ## set compositor feedback
+  ## =====
+  ## Requests the compositor to use the provided feedback string associated with this dial. This request should be issued immediately after a zwp_tablet_pad_group_v2.mode_switch event from the corresponding group is received, or whenever the dial is mapped to a different action. See zwp_tablet_pad_group_v2.mode_switch for more details. Clients are encouraged to provide context-aware descriptions for the actions associated with the dial, and compositors may use this information to offer visual feedback about the button layout (eg. on-screen displays). The provided string 'description' is a UTF-8 encoded string to be associated with this ring, and is considered user-visible; general internationalization rules apply. The serial argument will be that of the last zwp_tablet_pad_group_v2.mode_switch event received for the group of this dial. Requests providing other serials than the most recent one will be ignored.
+  zwp_tablet_pad_dial_v2_set_feedback(obj.handle, Description, Serial)
+
+
+
+# wrapgen: end emitting request wrappers
 # wrapgen: start emitting enum shims
 # wrapgen: end emitting enum shims
