@@ -184,7 +184,8 @@ proc eatEnum(p: var XmlParser): Enum =
           entry.value = cast[uint32](parseHexInt(attrs["value"]))
         else:
           entry.value = cast[uint32](parseUint(attrs["value"]))
-        entry.summary = attrs["summary"]
+        if "summary" in attrs:
+          entry.summary = attrs["summary"]
 
         val.entries &= ensureMove(entry)
     of xmlElementEnd:
@@ -507,7 +508,7 @@ proc emitEvents(buffer: var string, iface: Interface, normalizedName: string) =
     buffer &= ')'
 
     if i + 1 < iface.events.len:
-      buffer &= "  ,"
+      buffer &= "\n  ,\n"
 
   buffer &= "\n)\n"
 
