@@ -116,3 +116,7 @@ It's simply verified to be compiling.
 - [X] `zwp_linux_dmabuf_v1`
 - [X] `zwp_linux_buffer_params_v1`
 - [X] `zwp_linux_dmabuf_feedback_v1`
+
+## KWin Blur
+- [X] `org_kde_kwin_blur_manager`
+- [X] `org_kde_kwin_blur`
