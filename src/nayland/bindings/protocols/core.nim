@@ -7,7 +7,7 @@ export libwayland.wl_fixed, libwayland.wl_array
 {.push header: "<wayland-client-protocol.h>".}
 
 type
-  wl_registry* {.importc: "struct $1".} = object
+  wl_registry* {.importc: "struct $1".} = pointer
   wl_registry_listener* {.importc: "struct $1".} = object
     global*: proc(
       data: pointer,
@@ -20,7 +20,7 @@ type
     global_remove*:
       proc(data: pointer, registry: ptr wl_registry, name: uint32) {.cdecl.}
 
-  wl_compositor* {.importc: "struct $1".} = object
+  wl_compositor* {.importc: "struct $1".} = pointer
   wl_surface* {.importc: "struct $1".} = object
   wl_region* {.importc: "struct $1".} = object
   wl_shm* {.importc: "struct $1".} = object
