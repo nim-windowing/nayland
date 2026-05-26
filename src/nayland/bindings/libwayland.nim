@@ -56,7 +56,7 @@ let WL_MAX_MESSAGE_SIZE*: int32
 
 type
   wl_proxy* {.importc: "struct $1".} = object
-  wl_display* {.importc: "struct $1".} = pointer
+  wl_display* {.importc: "struct $1".} = object
   wl_event_queue* {.importc: "struct $1".} = object
 
 {.push importc.}
