@@ -59,6 +59,8 @@ proc eatCharData(p: var XmlParser): string =
     p.next()
     if p.kind == xmlCharData:
       return p.charData
+    elif p.kind == xmlElementEnd:
+      break
     else:
       continue
 
@@ -120,14 +122,14 @@ proc eatRequest(p: var XmlParser): Request =
       elif p.elementName == "arg":
         req.args &= eatArg(p)
       else:
-        discard
+        unreachable
     of xmlElementEnd:
       if p.elementName == "request":
         break
     of xmlElementClose:
       discard
     else:
-      discard # unreachable
+      unreachable
 
   ensureMove(req)
 
