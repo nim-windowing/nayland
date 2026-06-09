@@ -4,8 +4,8 @@
 ##
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import
-  std/[os, options, parsexml, rdstdin, streams, strformat, strutils, sequtils, tables]
-import pkg/[pretty, shakar]
+  std/[os, osproc, parsexml, rdstdin, streams, strformat, strutils, sequtils, tables]
+import pkg/[shakar]
 
 type
   RequestKind* = enum
@@ -603,6 +603,7 @@ proc generateWrapper(protocolFile: string) =
     moduleName = splitProtoDir.join("_").split('.')[0] # In the bindings dir
     protoDirName = splitProtoDir[0 ..< splitProtoDir.len - 1].join("_")
     baseDir = &"src/nayland/types/protocols/{protoDirName}"
+    nphPath = findExe("nph")
 
   createDir(baseDir)
 
@@ -624,6 +625,9 @@ proc generateWrapper(protocolFile: string) =
     if confirmed:
       echo "=> " & path
       writeFile(path, wrapper.data)
+
+      if nphPath.len > 0:
+        discard execCmd(&"{nphPath} {path}")
     else:
       echo &"Skipped '{path}'"
 
