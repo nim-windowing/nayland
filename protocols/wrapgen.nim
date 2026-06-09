@@ -127,7 +127,7 @@ proc eatRequest(p: var XmlParser): Request =
     of xmlElementClose:
       discard
     else:
-      unreachable
+      discard # unreachable
 
   ensureMove(req)
 
