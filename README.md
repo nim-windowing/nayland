@@ -126,3 +126,8 @@ It's simply verified to be compiling.
 - [X] `zwp_pointer_gesture_swipe_v1`
 - [X] `zwp_pointer_gesture_pinch_v1`
 - [X] `zwp_pointer_gesture_hold_v1`
+
+## Session Lock V1
+- [X] `ext_session_lock_manager_v1`
+- [X] `ext_session_lock_v1`
+- [X] `ext_session_lock_surface_v1`
