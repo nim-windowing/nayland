@@ -120,3 +120,9 @@ It's simply verified to be compiling.
 ## KWin Blur
 - [X] `org_kde_kwin_blur_manager`
 - [X] `org_kde_kwin_blur`
+
+## Pointer Gestures
+- [X] `zwp_pointer_gestures_v1`
+- [X] `zwp_pointer_gesture_swipe_v1`
+- [X] `zwp_pointer_gesture_pinch_v1`
+- [X] `zwp_pointer_gesture_hold_v1`
