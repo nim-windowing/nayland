@@ -282,7 +282,12 @@ func isComplexType(typ: string): bool {.inline.} =
 
   typ notin SimpleTypes
 
-func normalizeTypeName(typ: string, fixedToFloat: bool = false): string {.inline.} =
+func normalizeTypeName(
+    typ: string,
+    fixedToFloat: bool = false,
+    complexSubs: bool = true,
+    requiresWrapping: out bool,
+): string {.inline.} =
   var SubTable = {
     "uint": "uint32",
     "string": "string",
@@ -294,12 +299,19 @@ func normalizeTypeName(typ: string, fixedToFloat: bool = false): string {.inline
   if fixedToFloat:
     SubTable["fixed"] = "float"
 
-  if isComplexType(typ):
+  requiresWrapping = false
+
+  if isComplexType(typ) and complexSubs:
     # If it's a wayland interface, normalize it
     return normalizeInterfaceName(typ)
 
-  # Else, substitute it.
-  SubTable[typ]
+  if typ in SubTable:
+    # If it exists in the substitution table, substitute it.
+    return SubTable[typ]
+
+  # Otherwise, return it as-is, and let the caller know it'll probably require wrapping down the line when passed to higher-level callback procs.
+  requiresWrapping = true
+  typ
 
 proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: string) =
   buffer &= "\n# wrapgen: begin emitting interface structures\ntype\n"
@@ -347,7 +359,9 @@ proc emitInterfaceStruct(buffer: var string, iface: Interface, normalizedName: s
         &"  {normalizedName}{norm[0].toUpperAscii & norm[1 ..< norm.len]}Callback* = proc("
 
       for i, arg in event.args:
-        buffer &= &"{arg.name}: {normalizeTypeName(arg.typ, fixedToFloat = true)}"
+        var aux: bool
+        buffer &=
+          &"{arg.name}: {normalizeTypeName(arg.typ, fixedToFloat = true, requiresWrapping = aux)}"
 
         if i + 1 < event.args.len:
           buffer &= ", "
@@ -415,7 +429,9 @@ proc emitRequests(buffer: var string, iface: Interface, normalizedName: string) 
 
       for arg in req.args:
         if not arg.retval:
-          buffer &= &", {normalizeEnumIdent(arg.name)}: {normalizeTypeName(arg.typ)}"
+          var aux: bool
+          buffer &=
+            &", {normalizeEnumIdent(arg.name)}: {normalizeTypeName(arg.typ, requiresWrapping = aux)}"
 
       buffer &= ")"
 
@@ -492,8 +508,18 @@ proc emitEvents(buffer: var string, iface: Interface, normalizedName: string) =
     buffer &=
       &"    {sanitizeNimIdent(event.name)}: proc(data: pointer, this: ptr {iface.name}"
 
-    for arg in event.args:
-      buffer &= &", {arg.name}: {normalizeTypeName(arg.typ)}"
+    var requiresWrapping = newSeq[bool](event.args.len)
+    for i, arg in event.args:
+      let normalized = normalizeTypeName(
+        arg.typ, complexSubs = false, requiresWrapping = requiresWrapping[i]
+      )
+      buffer &= &", {arg.name}: "
+
+      if requiresWrapping[i]:
+        # Most, if not all types that require wrapping are just opaque libwayland structs.
+        buffer &= "ptr "
+
+      buffer &= normalized
 
     buffer &= ") {.cdecl.} =\n"
 
@@ -514,6 +540,10 @@ proc emitEvents(buffer: var string, iface: Interface, normalizedName: string) =
       buffer &= &"{arg.name}"
       if arg.typ == "fixed":
         buffer &= ".toFloat"
+      elif requiresWrapping[i]:
+        var aux: bool
+        buffer &=
+          &".new{normalizeTypeName(arg.typ, complexSubs = true, requiresWrapping = aux)}()"
 
       if i + 1 < event.args.len:
         buffer &= ", "
