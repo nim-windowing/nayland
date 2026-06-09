@@ -470,6 +470,15 @@ converter shim{i}*(v: {evalue.name[0].toUpperAscii & evalue.name[1 ..< evalue.na
 
   buffer &= "# wrapgen: end emitting enum shims\n"
 
+func sanitizeNimIdent(ident: string): string {.inline.} =
+  ## This returns `ident` with stropping (backtick-enclosures) in the event that `ident` is
+  ## found to be a Nim keyword that'd cause a parsing error.
+  if ident in ["end"]:
+    # Thus far I've only found `end` in the wild.
+    return &"`{ident}`"
+
+  ident
+
 proc emitEvents(buffer: var string, iface: Interface, normalizedName: string) =
   if iface.events.len < 1:
     return
@@ -480,7 +489,8 @@ proc emitEvents(buffer: var string, iface: Interface, normalizedName: string) =
   buffer &= &"  {iface.name}_listener(\n"
 
   for i, event in iface.events:
-    buffer &= &"    {event.name}: proc(data: pointer, this: ptr {iface.name}"
+    buffer &=
+      &"    {sanitizeNimIdent(event.name)}: proc(data: pointer, this: ptr {iface.name}"
 
     for arg in event.args:
       buffer &= &", {arg.name}: {normalizeTypeName(arg.typ)}"
