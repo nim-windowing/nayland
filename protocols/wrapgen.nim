@@ -216,6 +216,8 @@ func normalizeInterfaceName(name: string): string =
       "wlr": "", # wlroots
       "kde": "", # KDE
       "wl": "", # Core
+      "ext": "",
+        # not sure what ext stands for. extra? extension? external? ¯\_(ツ)_/¯
     }
   )
 
