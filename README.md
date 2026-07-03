@@ -130,3 +130,7 @@ It's simply verified to be compiling.
 - [X] `ext_session_lock_manager_v1`
 - [X] `ext_session_lock_v1`
 - [X] `ext_session_lock_surface_v1`
+
+## Idle Notify V1
+- [X] `ext_idle_notifier_v1`
+- [X] `ext_idle_notification_v1`
