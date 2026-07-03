@@ -16,7 +16,7 @@ proc `=destroy`*(manager: XDGDecorationManagerObj) =
   zxdg_decoration_manager_v1_destroy(manager.handle)
 
 proc getToplevelDecoration*(
-    manager: XDGDecorationManager, toplevel: XDGToplevel
+    manager: XDGDecorationManager, toplevel: Toplevel
 ): XDGToplevelDecoration =
   newXDGToplevelDecoration(
     zxdg_decoration_manager_v1_get_toplevel_decoration(manager.handle, toplevel.handle)
