@@ -3,7 +3,7 @@
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import pkg/nayland/bindings/protocols/xdg_decoration_unstable_v1
 import
-  pkg/nayland/types/protocols/xdg_shell/xdg_toplevel,
+  pkg/nayland/types/protocols/xdg_shell/prelude,
   pkg/nayland/types/protocols/xdg_decoration/toplevel_decoration
 
 type

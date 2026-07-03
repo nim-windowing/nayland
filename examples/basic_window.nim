@@ -3,7 +3,7 @@ import
   pkg/nayland/types/display,
   pkg/nayland/types/protocols/core/[compositor, registry, shm, shm_pool, surface],
   pkg/nayland/bindings/protocols/[core, xdg_shell, xdg_decoration_unstable_v1],
-  pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
+  pkg/nayland/types/protocols/xdg_shell/prelude,
   pkg/nayland/types/protocols/xdg_decoration/prelude
 
 const
@@ -37,13 +37,13 @@ let wm = initWMBase(
 wm.attachCallbacks()
 
 let surf = comp.createSurface()
-let xdgSurf = get wm.getXDGSurface(surf)
-let toplevel = get xdgSurf.getToplevel()
+let xdgSurf = wm.getXDGSurface(surf)
+let toplevel = xdgSurf.getToplevel()
 
 var running = true
-toplevel.onConfigure = proc(_: XDGToplevel, width, height: int32) =
+toplevel.onConfigure = proc(width, height: int32) =
   discard
-toplevel.onClose = proc(_: XDGToplevel) =
+toplevel.onClose = proc() =
   running = false
 toplevel.attachCallbacks()
 
@@ -74,9 +74,8 @@ let buffer = get pool.createBuffer(
 var configured = false
 var decorationReady = true
 var committed = false
-var decorationListener: zxdg_toplevel_decoration_v1_listener
-xdgSurf.onConfigure = proc(xdg: XDGSurface, data: pointer, serial: uint32) =
-  xdg.ackConfigure(serial)
+xdgSurf.onConfigure = proc(serial: uint32) =
+  xdgSurf.ackConfigure(serial)
   configured = true
 xdgSurf.attachCallbacks()
 

@@ -1,6 +1,6 @@
 # Package
 
-version = "0.3.1"
+version = "0.3.2"
 author = "xTrayambak"
 description = "High-level Nim wrapper around libwayland's client interface"
 license = "BSD-3-Clause"
