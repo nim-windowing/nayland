@@ -57,10 +57,10 @@ $ nimble add https://github.com/xTrayambak/nayland
 
 ## XDG shell
 - [X] `xdg_wm_base`
-- [ ] `xdg_positioner`
+- [X] `xdg_positioner`
 - [X] `xdg_surface`
 - [X] `xdg_toplevel`
-- [ ] `xdg_popup`
+- [X] `xdg_popup`
 
 ## Fractional Scale V1
 - [X] `wp_fractional_scale_manager_v1`

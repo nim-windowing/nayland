@@ -4,7 +4,7 @@ import
   pkg/nayland/types/protocols/core/prelude,
   pkg/nayland/bindings/protocols/
     [core, cursor_shape_v1, xdg_shell, fractional_scale_v1, xdg_system_bell_v1],
-  pkg/nayland/types/protocols/xdg_shell/[wm_base, xdg_surface, xdg_toplevel],
+  pkg/nayland/types/protocols/xdg_shell/prelude,
   pkg/nayland/types/protocols/fractional_scale/prelude,
   pkg/nayland/types/protocols/xdg_system_bell,
   pkg/nayland/types/protocols/idle_inhibit/prelude,
@@ -169,12 +169,12 @@ scale.onPreferredScale = proc(scale: uint32) =
 
 scale.attachCallbacks()
 
-let xsurf = get wm.getXDGSurface(surf)
-let toplevel = get xsurf.getToplevel()
+let xsurf = wm.getXDGSurface(surf)
+let toplevel = xsurf.getToplevel()
 wm.attachCallbacks()
 
-xsurf.onConfigure = proc(surface: XDGSurface, data: pointer, serial: uint32) =
-  surface.ackConfigure(serial)
+xsurf.onConfigure = proc(serial: uint32) =
+  xsurf.ackConfigure(serial)
 
 xsurf.attachCallbacks()
 
@@ -185,13 +185,14 @@ roundtrip disp
 toplevel.title = "Hello Nayland!"
 toplevel.appId = "xyz.xtrayambak.nayland"
 
-toplevel.onConfigure = proc(toplevel: XDGToplevel, width, height: int32) =
-  echo "Configure XDGToplevel; width=" & $width & ", height=" & $height
+toplevel.onConfigure = proc(width, height: int32, states: seq[State]) =
+  echo "Configure XDGToplevel; width=" & $width & ", height=" & $height & ", states=" &
+    $states
 
 const maxFrames = 200
 var running = true
 var frameCount = 0
-toplevel.onClose = proc(toplevel: XDGToplevel) =
+toplevel.onClose = proc() =
   echo "User wants to close XDGToplevel"
   running = false
 

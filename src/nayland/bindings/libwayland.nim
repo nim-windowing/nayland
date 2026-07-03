@@ -107,3 +107,18 @@ proc wl_display_create_queue_with_name*(
 {.pop.}
 
 {.pop.}
+
+iterator items*[T](arr: ptr wl_array): T =
+  ## handy iterator to work with `wl_array`
+  let
+    unit = cast[uint64](sizeof(T))
+    nitems = arr.size div unit
+
+  for i in 0 ..< nitems:
+    yield cast[ptr T](cast[uint64](arr.data) + (unit * i))[]
+
+func shallowCopyArray*[T](arr: ptr wl_array, typ: typedesc[T]): seq[T] =
+  let dest = newSeq[T](arr.size)
+  copyMem(dest[0].addr, arr, arr.size)
+
+  dest
