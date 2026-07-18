@@ -36,32 +36,37 @@ type
 proc `=destroy`*(source: DataSourceObj) =
   wl_data_source_destroy(source.handle)
 
-func newDataSource*(handle: ptr wl_data_source): DataSource {.inline.} =
-  DataSource(handle: handle, payload: DatasourcePayload())
+proc newDataSource*(handle: ptr wl_data_source): DataSource {.inline.}
 
 let listener = wl_data_source_listener(
   target: proc(
       data: pointer, source: ptr wl_data_source, mimeType: ConstCStr
   ) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.targetCb(newDataSource(source), $mimeType),
+    if payload.targetCb != nil:
+      payload.targetCb(newDataSource(source), $mimeType),
   send: proc(
       data: pointer, source: ptr wl_data_source, mimeType: ConstCStr, fd: int32
   ) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.sendCb(newDataSource(source), $mimeType, fd),
+    if payload.sendCb != nil:
+      payload.sendCb(newDataSource(source), $mimeType, fd),
   cancelled: proc(data: pointer, source: ptr wl_data_source) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.cancelledCb(newDataSource(source)),
+    if payload.cancelledCb != nil:
+      payload.cancelledCb(newDataSource(source)),
   dnd_drop_performed: proc(data: pointer, source: ptr wl_data_source) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.dndDropPerformedCb(newDataSource(source)),
+    if payload.dndDropPerformedCb != nil:
+      payload.dndDropPerformedCb(newDataSource(source)),
   dnd_finished: proc(data: pointer, source: ptr wl_data_source) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.dndFinishedCb(newDataSource(source)),
+    if payload.dndFinishedCb != nil:
+      payload.dndFinishedCb(newDataSource(source)),
   action: proc(data: pointer, source: ptr wl_data_source, dndAction: uint32) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.actionCb(newDataSource(source), cast[DNDAction](dndAction)),
+    if payload.actionCb != nil:
+      payload.actionCb(newDataSource(source), cast[DNDAction](dndAction)),
 )
 
 func `onTarget=`*(source: DataSource, cb: DataSourceTargetCallback) =
@@ -84,13 +89,17 @@ func `onDndFinished=`*(source: DataSource, cb: DataSourceDNDFinishedCallback) =
 func `onAction=`*(source: DataSource, cb: DataSourceActionCallback) =
   source.payload.actionCb = cb
 
-proc attachCallbacks*(source: DataSource) =
-  discard wl_data_source_add_listener(
-    source.handle, listener.addr, cast[pointer](source.payload)
-  )
+proc attachCallbacks*(source: DataSource) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".}
+  discard
 
 proc offer*(source: DataSource, mime: string) =
   wl_data_source_offer(source.handle, cstring(mime))
 
 proc setActions*(source: DataSource, actions: set[DNDAction]) =
   wl_data_source_set_actions(source.handle, cast[uint32](actions))
+
+proc newDataSource*(handle: ptr wl_data_source): DataSource {.inline.} =
+  result = DataSource(handle: handle, payload: DatasourcePayload())
+  discard wl_data_source_add_listener(
+    result.handle, listener.addr, cast[pointer](result.payload)
+  )

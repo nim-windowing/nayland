@@ -61,8 +61,7 @@ type
 proc release*(output: Output) =
   wl_output_release(output.handle)
 
-func initOutput*(handle: pointer | ptr wl_output): Output {.inline.} =
-  Output(handle: cast[ptr wl_output](handle), payload: OutputCallbackPayload())
+proc initOutput*(handle: pointer | ptr wl_output): Output {.inline.}
 
 let listener = wl_output_listener(
   geometry: proc(
@@ -73,36 +72,42 @@ let listener = wl_output_listener(
       transform: int32,
   ) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.geometryCb(
-      initOutput(output),
-      x,
-      y,
-      physicalWidth,
-      physicalHeight,
-      cast[OutputSubpixel](subpixel),
-      $make,
-      $model,
-      cast[OutputTransform](transform),
-    ),
+    if payload.geometryCb != nil:
+      payload.geometryCb(
+        initOutput(output),
+        x,
+        y,
+        physicalWidth,
+        physicalHeight,
+        cast[OutputSubpixel](subpixel),
+        $make,
+        $model,
+        cast[OutputTransform](transform),
+      ),
   mode: proc(
       data: pointer, output: ptr wl_output, flags: uint32, width, height, refresh: int32
   ) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.modeCb(
-      initOutput(output), cast[set[OutputMode]](flags), width, height, refresh
-    ),
+    if payload.modeCb != nil:
+      payload.modeCb(
+        initOutput(output), cast[set[OutputMode]](flags), width, height, refresh
+      ),
   done: proc(data: pointer, output: ptr wl_output) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.doneCb(initOutput(output)),
+    if payload.doneCb != nil:
+      payload.doneCb(initOutput(output)),
   scale: proc(data: pointer, output: ptr wl_output, factor: int32) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.scaleCb(initOutput(output), factor),
+    if payload.scaleCb != nil:
+      payload.scaleCb(initOutput(output), factor),
   name: proc(data: pointer, output: ptr wl_output, name: ConstCStr) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.nameCb(initOutput(output), $name),
+    if payload.nameCb != nil:
+      payload.nameCb(initOutput(output), $name),
   description: proc(data: pointer, output: ptr wl_output, desc: ConstCStr) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.descriptionCb(initOutput(output), $desc),
+    if payload.descriptionCb != nil:
+      payload.descriptionCb(initOutput(output), $desc),
 )
 
 func `onGeometry=`*(output: Output, cb: OutputGeometryCallback) =
@@ -123,6 +128,10 @@ func `onName=`*(output: Output, cb: OutputNameCallback) =
 func `onDescription=`*(output: Output, cb: OutputDescriptionCallback) =
   output.payload.descriptionCb = cb
 
-proc attachCallbacks*(output: Output) =
+proc attachCallbacks*(output: Output) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} 
   discard
-    wl_output_add_listener(output.handle, listener.addr, cast[pointer](output.payload))
+
+proc initOutput*(handle: pointer | ptr wl_output): Output {.inline.} =
+  result = Output(handle: cast[ptr wl_output](handle), payload: OutputCallbackPayload())
+  discard
+    wl_output_add_listener(result.handle, listener.addr, cast[pointer](result.payload))

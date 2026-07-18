@@ -31,8 +31,7 @@ type
 
   Touch* = ref TouchObj
 
-func newTouch*(handle: ptr wl_touch): Touch {.inline.} =
-  Touch(handle: handle, payload: TouchCallbacksPayload())
+proc newTouch*(handle: ptr wl_touch): Touch {.inline.}
 
 let listener = wl_touch_listener(
   down: proc(
@@ -45,35 +44,42 @@ let listener = wl_touch_listener(
       x, y: wl_fixed,
   ) {.cdecl.} =
     let payload = cast[TouchCallbacksPayload](data)
-    payload.downCb(
-      newTouch(touch), serial, time, newSurface(surface), id, x.toFloat(), y.toFloat()
-    ),
+    if payload.downCb != nil:
+      payload.downCb(
+        newTouch(touch), serial, time, newSurface(surface), id, x.toFloat(), y.toFloat()
+      ),
   up: proc(
       data: pointer, touch: ptr wl_touch, serial: uint32, time: uint32, id: int32
   ) {.cdecl.} =
     let payload = cast[TouchCallbacksPayload](data)
-    payload.upCb(newTouch(touch), serial, time, id),
+    if payload.upCb != nil:
+      payload.upCb(newTouch(touch), serial, time, id),
   motion: proc(
       data: pointer, touch: ptr wl_touch, time: uint32, id: int32, x, y: wl_fixed
   ) {.cdecl.} =
     let payload = cast[TouchCallbacksPayload](data)
-    payload.motionCb(newTouch(touch), time, id, x.toFloat(), y.toFloat()),
+    if payload.motionCb != nil:
+      payload.motionCb(newTouch(touch), time, id, x.toFloat(), y.toFloat()),
   frame: proc(data: pointer, touch: ptr wl_touch) {.cdecl.} =
     let payload = cast[TouchCallbacksPayload](data)
-    payload.frameCb(newTouch(touch)),
+    if payload.frameCb != nil:
+      payload.frameCb(newTouch(touch)),
   cancel: proc(data: pointer, touch: ptr wl_touch) {.cdecl.} =
     let payload = cast[TouchCallbacksPayload](data)
-    payload.cancelCb(newTouch(touch)),
+    if payload.cancelCb != nil:
+      payload.cancelCb(newTouch(touch)),
   shape: proc(
       data: pointer, touch: ptr wl_touch, id: int32, major, minor: wl_fixed
   ) {.cdecl.} =
     let payload = cast[TouchCallbacksPayload](data)
-    payload.shapeCb(newTouch(touch), id, major.toFloat(), minor.toFloat()),
+    if payload.shapeCb != nil:
+      payload.shapeCb(newTouch(touch), id, major.toFloat(), minor.toFloat()),
   orientation: proc(
       data: pointer, touch: ptr wl_touch, id: int32, orientation: wl_fixed
   ) {.cdecl.} =
     let payload = cast[TouchCallbacksPayload](data)
-    payload.orientationCb(newTouch(touch), id, orientation.toFloat()),
+    if payload.orientationCb != nil:
+      payload.orientationCb(newTouch(touch), id, orientation.toFloat()),
 )
 
 proc release*(touch: Touch) =
@@ -100,6 +106,10 @@ func `onShape=`*(touch: Touch, cb: TouchShapeCallback) =
 func `onOrientation=`*(touch: Touch, cb: TouchOrientationCallback) =
   touch.payload.orientationCb = cb
 
-proc attachCallbacks*(touch: Touch) =
+proc attachCallbacks*(touch: Touch) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} 
   discard
-    wl_touch_add_listener(touch.handle, listener.addr, cast[pointer](touch.payload))
+
+proc newTouch*(handle: ptr wl_touch): Touch {.inline.} =
+  result = Touch(handle: handle, payload: TouchCallbacksPayload())
+  discard
+    wl_touch_add_listener(result.handle, listener.addr, cast[pointer](result.payload))

@@ -61,53 +61,64 @@ let listener = wl_pointer_listener(
       surfaceX, surfaceY: wl_fixed,
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.enterCb(
-      payload.obj, serial, newSurface(surf), surfaceX.toFloat(), surfaceY.toFloat()
-    ),
+    if payload.enterCb != nil:
+      payload.enterCb(
+        payload.obj, serial, newSurface(surf), surfaceX.toFloat(), surfaceY.toFloat()
+      ),
   leave: proc(
       data: pointer, _: ptr wl_pointer, serial: uint32, surf: ptr wl_surface
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.leaveCb(payload.obj, serial, newSurface(surf)),
+    if payload.leaveCb != nil:
+      payload.leaveCb(payload.obj, serial, newSurface(surf)),
   motion: proc(
       data: pointer, _: ptr wl_pointer, time: uint32, surfaceX, surfaceY: wl_fixed
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.motionCb(payload.obj, time, surfaceX.toFloat(), surfaceY.toFloat()),
+    if payload.motionCb != nil:
+      payload.motionCb(payload.obj, time, surfaceX.toFloat(), surfaceY.toFloat()),
   frame: proc(data: pointer, _: ptr wl_pointer) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.frameCb(payload.obj),
+    if payload.frameCb != nil:
+      payload.frameCb(payload.obj),
   axis: proc(
       data: pointer, _: ptr wl_pointer, time, axis: uint32, value: wl_fixed
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.axisCb(payload.obj, time, axis, toFloat(value)),
+    if payload.axisCb != nil:
+      payload.axisCb(payload.obj, time, axis, toFloat(value)),
   button: proc(
       data: pointer, pntr: ptr wl_pointer, serial, time, button, state: uint32
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.buttonCb(payload.obj, serial, time, button, cast[ButtonState](state)),
+    if payload.buttonCb != nil:
+      payload.buttonCb(payload.obj, serial, time, button, cast[ButtonState](state)),
   axis_stop: proc(data: pointer, pntr: ptr wl_pointer, time, axis: uint32) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.axisStopCb(payload.obj, time, axis),
+    if payload.axisStopCb != nil:
+      payload.axisStopCb(payload.obj, time, axis),
   axis_discrete: proc(
       data: pointer, pntr: ptr wl_pointer, axis: uint32, discrete: int32
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.axisDiscreteCb(payload.obj, axis, discrete),
+    if payload.axisDiscreteCb != nil:
+      payload.axisDiscreteCb(payload.obj, axis, discrete),
   axis_value120: proc(
       data: pointer, pntr: ptr wl_pointer, axis: uint32, value120: int32
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.axisValue120Cb(payload.obj, axis, value120),
+    if payload.axisValue120Cb != nil:
+      payload.axisValue120Cb(payload.obj, axis, value120),
   axis_source: proc(data: pointer, pntr: ptr wl_pointer, axisSource: uint32) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.axisSourceCb(payload.obj, axisSource),
+    if payload.axisSourceCb != nil:
+      payload.axisSourceCb(payload.obj, axisSource),
   axis_relative_direction: proc(
       data: pointer, pntr: ptr wl_pointer, axis, direction: uint32
   ) {.cdecl.} =
     let payload = cast[ptr PointerCallbackPayload](data)
-    payload.axisRelativeDirection(payload.obj, axis, direction),
+    if payload.axisRelativeDirection != nil:
+      payload.axisRelativeDirection(payload.obj, axis, direction),
 )
 
 proc release*(pntr: Pointer | PointerObj) =
@@ -148,12 +159,12 @@ proc `onAxisRelativeDirection=`*(
 ) =
   pntr.callbacks.axisRelativeDirection = callback
 
-proc attachCallbacks*(pntr: Pointer) =
-  pntr.callbacks.obj = pntr
+proc attachCallbacks*(pntr: Pointer) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} =
+  discard
 
+proc newPointer*(handle: ptr wl_pointer): Pointer =
+  result = Pointer(handle: handle, callbacks: PointerCallbackPRef())
+  result.callbacks.obj = result
   discard wl_pointer_add_listener(
-    pntr.handle, listener.addr, cast[ptr PointerCallbackPayload](pntr.callbacks)
+    handle, listener.addr, cast[ptr PointerCallbackPayload](result.callbacks)
   )
-
-func newPointer*(handle: ptr wl_pointer): Pointer =
-  Pointer(handle: handle, callbacks: PointerCallbackPRef())

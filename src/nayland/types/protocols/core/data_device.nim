@@ -33,15 +33,15 @@ type
 proc `=destroy`*(device: DataDeviceObj) =
   discard # No-op
 
-func newDataDevice*(handle: ptr wl_data_device): DataDevice {.inline.} =
-  DataDevice(handle: handle, payload: DataDevicePayload())
+proc newDataDevice*(handle: ptr wl_data_device): DataDevice {.inline.}
 
 let listener = wl_data_device_listener(
   data_offer: proc(
       data: pointer, device: ptr wl_data_device, offer: ptr wl_data_offer
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.dataOfferCb(newDataDevice(device), newDataOffer(offer)),
+    if payload.dataOfferCb != nil:
+      payload.dataOfferCb(newDataDevice(device), newDataOffer(offer)),
   enter: proc(
       data: pointer,
       device: ptr wl_data_device,
@@ -51,30 +51,35 @@ let listener = wl_data_device_listener(
       offer: ptr wl_data_offer,
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.enterCb(
-      newDataDevice(device),
-      serial,
-      newSurface(surface),
-      x.toFloat(),
-      y.toFloat(),
-      newDataOffer(offer),
-    ),
+    if payload.enterCb != nil:
+      payload.enterCb(
+        newDataDevice(device),
+        serial,
+        newSurface(surface),
+        x.toFloat(),
+        y.toFloat(),
+        newDataOffer(offer),
+      ),
   leave: proc(data: pointer, device: ptr wl_data_device) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.leaveCb(newDataDevice(device)),
+    if payload.leaveCb != nil:
+      payload.leaveCb(newDataDevice(device)),
   motion: proc(
       data: pointer, source: ptr wl_data_device, serial: uint32, x, y: wl_fixed
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.motionCb(newDataDevice(source), serial, x.toFloat(), y.toFloat()),
+    if payload.motionCb != nil:
+      payload.motionCb(newDataDevice(source), serial, x.toFloat(), y.toFloat()),
   drop: proc(data: pointer, source: ptr wl_data_device) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.dropCb(newDataDevice(source)),
+    if payload.dropCb != nil:
+      payload.dropCb(newDataDevice(source)),
   selection: proc(
       data: pointer, source: ptr wl_data_device, offer: ptr wl_data_offer
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.selectionCb(newDataDevice(source), newDataOffer(offer)),
+    if payload.selectionCb != nil:
+      payload.selectionCb(newDataDevice(source), newDataOffer(offer)),
 )
 
 proc startDrag*(
@@ -105,10 +110,14 @@ func `onDrop=`*(device: DataDevice, cb: DataDeviceDropCallback) =
 func `onSelection=`*(device: DataDevice, cb: DataDeviceSelectionCallback) =
   device.payload.selectionCb = cb
 
-proc attachCallbacks*(device: DataDevice) =
-  discard wl_data_device_add_listener(
-    device.handle, listener.addr, cast[pointer](device.payload)
-  )
+proc attachCallbacks*(device: DataDevice) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".}
+  discard
 
 proc release*(device: DataDevice) =
   wl_data_device_release(device.handle)
+
+proc newDataDevice*(handle: ptr wl_data_device): DataDevice {.inline.} =
+  result = DataDevice(handle: handle, payload: DataDevicePayload())
+  discard wl_data_device_add_listener(
+    result.handle, listener.addr, cast[pointer](result.payload)
+  )
