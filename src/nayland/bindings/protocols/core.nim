@@ -77,7 +77,7 @@ type
   wl_seat_listener* {.importc: "struct $1".} = object
     capabilities*:
       proc(data: pointer, seat: ptr wl_seat, capabilities: uint32) {.cdecl.}
-    name*: proc(data: pointer, seat: ptr wl_seat, name: cstring) {.cdecl.}
+    name*: proc(data: pointer, seat: ptr wl_seat, name: ConstCStr) {.cdecl.}
 
   wl_keyboard_listener* {.importc: "struct $1".} = object
     keymap*: proc(
