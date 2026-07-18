@@ -110,7 +110,7 @@ func `onDrop=`*(device: DataDevice, cb: DataDeviceDropCallback) =
 func `onSelection=`*(device: DataDevice, cb: DataDeviceSelectionCallback) =
   device.payload.selectionCb = cb
 
-proc attachCallbacks*(device: DataDevice) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".}
+proc attachCallbacks*(device: DataDevice) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} =
   discard
 
 proc release*(device: DataDevice) =

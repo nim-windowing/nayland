@@ -124,7 +124,7 @@ proc `onModifiers=`*(keyb: Keyboard, cb: KeyboardModifiersCallback) =
 proc `onRepeatInfo=`*(keyb: Keyboard, cb: KeyboardRepeatInfoCallback) =
   keyb.callbacks.repeatInfoCb = cb
 
-proc attachCallbacks*(keyb: Keyboard) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} 
+proc attachCallbacks*(keyb: Keyboard) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} =
   discard
 
 proc newKeyboard*(handle: ptr wl_keyboard): Keyboard =

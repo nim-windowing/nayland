@@ -63,7 +63,7 @@ func `onSourceActions=`*(offer: DataOffer, cb: DataOfferSourceActionsCallback) =
 func `onAction=`*(offer: DataOffer, cb: DataOfferActionCallback) =
   offer.payload.actionCb = cb
 
-proc attachCallbacks*(offer: DataOffer) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".}
+proc attachCallbacks*(offer: DataOffer) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} =
   discard
 
 proc setActions*(offer: DataOffer, dndActions, preferredActions: set[DNDAction]) =

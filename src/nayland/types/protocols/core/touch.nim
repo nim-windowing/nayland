@@ -106,7 +106,7 @@ func `onShape=`*(touch: Touch, cb: TouchShapeCallback) =
 func `onOrientation=`*(touch: Touch, cb: TouchOrientationCallback) =
   touch.payload.orientationCb = cb
 
-proc attachCallbacks*(touch: Touch) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} 
+proc attachCallbacks*(touch: Touch) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} =
   discard
 
 proc newTouch*(handle: ptr wl_touch): Touch {.inline.} =

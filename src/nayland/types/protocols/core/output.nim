@@ -128,7 +128,7 @@ func `onName=`*(output: Output, cb: OutputNameCallback) =
 func `onDescription=`*(output: Output, cb: OutputDescriptionCallback) =
   output.payload.descriptionCb = cb
 
-proc attachCallbacks*(output: Output) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} 
+proc attachCallbacks*(output: Output) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} =
   discard
 
 proc initOutput*(handle: pointer | ptr wl_output): Output {.inline.} =

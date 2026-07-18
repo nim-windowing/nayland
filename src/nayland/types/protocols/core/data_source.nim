@@ -89,7 +89,7 @@ func `onDndFinished=`*(source: DataSource, cb: DataSourceDNDFinishedCallback) =
 func `onAction=`*(source: DataSource, cb: DataSourceActionCallback) =
   source.payload.actionCb = cb
 
-proc attachCallbacks*(source: DataSource) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".}
+proc attachCallbacks*(source: DataSource) {.deprecated: "callbacks are attached automatically now; this call is a no-op and safe to remove".} =
   discard
 
 proc offer*(source: DataSource, mime: string) =
