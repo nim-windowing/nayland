@@ -41,7 +41,8 @@ let listener = wl_data_device_listener(
       data: pointer, device: ptr wl_data_device, offer: ptr wl_data_offer
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.dataOfferCb(newDataDevice(device), newDataOffer(offer)),
+    if payload.dataOfferCb != nil:
+      payload.dataOfferCb(newDataDevice(device), newDataOffer(offer)),
   enter: proc(
       data: pointer,
       device: ptr wl_data_device,
@@ -51,30 +52,35 @@ let listener = wl_data_device_listener(
       offer: ptr wl_data_offer,
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.enterCb(
-      newDataDevice(device),
-      serial,
-      newSurface(surface),
-      x.toFloat(),
-      y.toFloat(),
-      newDataOffer(offer),
-    ),
+    if payload.enterCb != nil:
+      payload.enterCb(
+        newDataDevice(device),
+        serial,
+        newSurface(surface),
+        x.toFloat(),
+        y.toFloat(),
+        newDataOffer(offer),
+      ),
   leave: proc(data: pointer, device: ptr wl_data_device) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.leaveCb(newDataDevice(device)),
+    if payload.leaveCb != nil:
+      payload.leaveCb(newDataDevice(device)),
   motion: proc(
       data: pointer, source: ptr wl_data_device, serial: uint32, x, y: wl_fixed
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.motionCb(newDataDevice(source), serial, x.toFloat(), y.toFloat()),
+    if payload.motionCb != nil:
+      payload.motionCb(newDataDevice(source), serial, x.toFloat(), y.toFloat()),
   drop: proc(data: pointer, source: ptr wl_data_device) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.dropCb(newDataDevice(source)),
+    if payload.dropCb != nil:
+      payload.dropCb(newDataDevice(source)),
   selection: proc(
       data: pointer, source: ptr wl_data_device, offer: ptr wl_data_offer
   ) {.cdecl.} =
     let payload = cast[DataDevicePayload](data)
-    payload.selectionCb(newDataDevice(source), newDataOffer(offer)),
+    if payload.selectionCb != nil:
+      payload.selectionCb(newDataDevice(source), newDataOffer(offer)),
 )
 
 proc startDrag*(
@@ -112,3 +118,4 @@ proc attachCallbacks*(device: DataDevice) =
 
 proc release*(device: DataDevice) =
   wl_data_device_release(device.handle)
+
