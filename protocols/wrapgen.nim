@@ -207,20 +207,11 @@ func normalizeInterfaceName(name: string): string =
   ## such that there are no massive breakages.
 
   # Step 1: Remove the protocol family. I like calling it the family.
-  let replaceFamily = name.multiReplace(
-    {
-      "zwp": "",
-      "wp": "", # Staging
-      "xx": "", # Experimental
-      "xdg": "", # XDG/Freedesktop
-      "wlr": "", # wlroots
-      "kde": "", # KDE
-      "wl": "", # Core
-      "ext": "",
-        # not sure what ext stands for. extra? extension? external? ¯\_(ツ)_/¯
-    }
-  )
-
+  var replaceFamily = name
+  for prefix in ["zwp", "xdg", "wlr", "kde", "ext", "wp", "xx", "wl"]:
+    if replaceFamily.startsWith(prefix):
+      replaceFamily.removePrefix(prefix)
+      break
   # Step 2: For every char in the new string,
   var buffer: string
   var pos = 0'i64
