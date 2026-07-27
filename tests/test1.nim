@@ -146,6 +146,20 @@ keyb.attachCallbacks()
 # let touch = get seatObj.getTouch()
 
 let surf = comp.createSurface()
+
+surf.onEnter = proc(s: Surface, output: Output) =
+  debugecho "Surface::onEnter (entered an output)"
+
+surf.onPreferredBufferScale = proc(s: Surface, factor: int32) =
+  debugecho "Surface::onPreferredBufferScale(" & $factor & ')'
+  s.setBufferScale(factor)
+
+surf.onPreferredBufferTransform = proc(s: Surface, transform: OutputTransform) =
+  debugecho "Surface::onPreferredBufferTransform(" & $transform & ')'
+  s.setBufferTransform(transform)
+
+surf.attachCallbacks()
+
 disp.roundtrip()
 
 const poolsize = 32 * 32 * 4
