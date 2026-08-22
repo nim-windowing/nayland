@@ -192,6 +192,14 @@ type
     orientation*:
       proc(d: pointer, t: ptr wl_touch, id: int32, orientation: wl_fixed) {.cdecl.}
 
+  wl_surface_listener* {.importc: "struct $1".} = object
+    enter*: proc(d: pointer, surf: ptr wl_surface, output: ptr wl_output) {.cdecl.}
+    leave*: proc(d: pointer, surf: ptr wl_surface, output: ptr wl_output) {.cdecl.}
+    preferred_buffer_scale*:
+      proc(d: pointer, surf: ptr wl_surface, factor: int32) {.cdecl.}
+    preferred_buffer_transform*:
+      proc(d: pointer, surf: ptr wl_surface, transform: uint32) {.cdecl.}
+
 {.push importc.}
 
 let
@@ -222,6 +230,11 @@ proc wl_surface_damage*(surf: ptr wl_surface, x, y, w, h: int32)
 proc wl_surface_commit*(surf: ptr wl_surface)
 proc wl_surface_attach*(surf: ptr wl_surface, buffer: ptr wl_buffer, x, y: int32)
 proc wl_surface_frame*(surf: ptr wl_surface): ptr wl_callback
+proc wl_surface_set_buffer_scale*(surf: ptr wl_surface, scale: int32)
+proc wl_surface_set_buffer_transform*(surf: ptr wl_surface, transform: int32)
+proc wl_surface_add_listener*(
+  surf: ptr wl_surface, listener: ptr wl_surface_listener, data: pointer
+): int32
 
 proc wl_region_destroy*(r: ptr wl_region)
 proc wl_region_add*(r: ptr wl_region, x, y, w, h: int32)
