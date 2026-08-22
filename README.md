@@ -134,3 +134,7 @@ It's simply verified to be compiling.
 ## Idle Notify V1
 - [X] `ext_idle_notifier_v1`
 - [X] `ext_idle_notification_v1`
+
+## Viewporter
+- [X] `wp_viewporter`
+- [X] `wp_viewport`
