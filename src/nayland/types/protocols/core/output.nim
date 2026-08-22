@@ -73,36 +73,42 @@ let listener = wl_output_listener(
       transform: int32,
   ) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.geometryCb(
-      initOutput(output),
-      x,
-      y,
-      physicalWidth,
-      physicalHeight,
-      cast[OutputSubpixel](subpixel),
-      $make,
-      $model,
-      cast[OutputTransform](transform),
-    ),
+    if payload.geometryCb != nil:
+      payload.geometryCb(
+        initOutput(output),
+        x,
+        y,
+        physicalWidth,
+        physicalHeight,
+        cast[OutputSubpixel](subpixel),
+        $make,
+        $model,
+        cast[OutputTransform](transform),
+      ),
   mode: proc(
       data: pointer, output: ptr wl_output, flags: uint32, width, height, refresh: int32
   ) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.modeCb(
-      initOutput(output), cast[set[OutputMode]](flags), width, height, refresh
-    ),
+    if payload.modeCb != nil:
+      payload.modeCb(
+        initOutput(output), cast[set[OutputMode]](flags), width, height, refresh
+      ),
   done: proc(data: pointer, output: ptr wl_output) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.doneCb(initOutput(output)),
+    if payload.doneCb != nil:
+      payload.doneCb(initOutput(output)),
   scale: proc(data: pointer, output: ptr wl_output, factor: int32) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.scaleCb(initOutput(output), factor),
+    if payload.scaleCb != nil:
+      payload.scaleCb(initOutput(output), factor),
   name: proc(data: pointer, output: ptr wl_output, name: ConstCStr) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.nameCb(initOutput(output), $name),
+    if payload.nameCb != nil:
+      payload.nameCb(initOutput(output), $name),
   description: proc(data: pointer, output: ptr wl_output, desc: ConstCStr) {.cdecl.} =
     let payload = cast[OutputCallbackPayload](data)
-    payload.descriptionCb(initOutput(output), $desc),
+    if payload.descriptionCb != nil:
+      payload.descriptionCb(initOutput(output), $desc),
 )
 
 func `onGeometry=`*(output: Output, cb: OutputGeometryCallback) =
@@ -126,3 +132,4 @@ func `onDescription=`*(output: Output, cb: OutputDescriptionCallback) =
 proc attachCallbacks*(output: Output) =
   discard
     wl_output_add_listener(output.handle, listener.addr, cast[pointer](output.payload))
+

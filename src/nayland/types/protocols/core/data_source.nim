@@ -44,24 +44,30 @@ let listener = wl_data_source_listener(
       data: pointer, source: ptr wl_data_source, mimeType: ConstCStr
   ) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.targetCb(newDataSource(source), $mimeType),
+    if payload.targetCb != nil:
+      payload.targetCb(newDataSource(source), $mimeType),
   send: proc(
       data: pointer, source: ptr wl_data_source, mimeType: ConstCStr, fd: int32
   ) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.sendCb(newDataSource(source), $mimeType, fd),
+    if payload.sendCb != nil:
+      payload.sendCb(newDataSource(source), $mimeType, fd),
   cancelled: proc(data: pointer, source: ptr wl_data_source) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.cancelledCb(newDataSource(source)),
+    if payload.cancelledCb != nil:
+      payload.cancelledCb(newDataSource(source)),
   dnd_drop_performed: proc(data: pointer, source: ptr wl_data_source) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.dndDropPerformedCb(newDataSource(source)),
+    if payload.dndDropPerformedCb != nil:
+      payload.dndDropPerformedCb(newDataSource(source)),
   dnd_finished: proc(data: pointer, source: ptr wl_data_source) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.dndFinishedCb(newDataSource(source)),
+    if payload.dndFinishedCb != nil:
+      payload.dndFinishedCb(newDataSource(source)),
   action: proc(data: pointer, source: ptr wl_data_source, dndAction: uint32) {.cdecl.} =
     let payload = cast[DataSourcePayload](data)
-    payload.actionCb(newDataSource(source), cast[DNDAction](dndAction)),
+    if payload.actionCb != nil:
+      payload.actionCb(newDataSource(source), cast[DNDAction](dndAction)),
 )
 
 func `onTarget=`*(source: DataSource, cb: DataSourceTargetCallback) =
@@ -94,3 +100,4 @@ proc offer*(source: DataSource, mime: string) =
 
 proc setActions*(source: DataSource, actions: set[DNDAction]) =
   wl_data_source_set_actions(source.handle, cast[uint32](actions))
+
