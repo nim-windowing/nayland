@@ -208,7 +208,7 @@ func normalizeInterfaceName(name: string): string =
 
   # Step 1: Remove the protocol family. I like calling it the family.
   var replaceFamily = name
-  for prefix in ["zwp", "xdg", "wlr", "kde", "ext", "wp", "xx", "wl"]:
+  for prefix in ["zwp", "xdg", "wlr", "kde", "ext", "wp", "xx", "wl", "zwlr"]:
     if replaceFamily.startsWith(prefix):
       replaceFamily.removePrefix(prefix)
       break
