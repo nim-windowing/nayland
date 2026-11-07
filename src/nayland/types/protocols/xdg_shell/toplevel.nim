@@ -66,7 +66,7 @@ type
     ## =====
     ## This interface defines an xdg_surface role which allows a surface to, among other things, set window-like properties such as maximize, fullscreen, and minimize, set application-specific metadata like title and id, and well as trigger user interactive operations such as interactive resize and move. A xdg_toplevel by default is responsible for providing the full intended visual representation of the toplevel, which depending on the window state, may mean things like a title bar, window controls and drop shadow. Unmapping an xdg_toplevel means that the surface cannot be shown by the compositor until it is explicitly mapped again. All active operations (e.g., move, resize) are canceled and all attributes (e.g. title, state, stacking, ...) are discarded for an xdg_toplevel surface when it is unmapped. The xdg_toplevel returns to the state it had right after xdg_surface.get_toplevel. The client can re-map the toplevel by performing a commit without any buffer attached, waiting for a configure event and handling it as usual (see xdg_surface description). Attaching a null buffer to a toplevel unmaps the surface.
 
-  ToplevelConfigureCallback* = proc(width: int32, height: int32, states: seq[State])
+  ToplevelConfigureCallback* = proc(width: int32, height: int32, states: set[State])
   ToplevelCloseCallback* = proc()
   ToplevelConfigureBoundsCallback* = proc(width: int32, height: int32)
   ToplevelWmCapabilitiesCallback* = proc(capabilities: seq[WMCapabilities])
@@ -122,7 +122,7 @@ let listener {.global.} = xdg_toplevel_listener(
       write(stderr, "[nayland] handler not attached for event 'configure'!\n")
       return
 
-    payload.configureCb(width, height, shallowCopyArray(states, State)),
+    payload.configureCb(width, height, states.toSet(State)),
   close: proc(data: pointer, this: ptr xdg_toplevel) {.cdecl.} =
     let payload = cast[ToplevelPayload](data)
     if payload.closeCb == nil:

@@ -41,7 +41,7 @@ let xdgSurf = wm.getXDGSurface(surf)
 let toplevel = xdgSurf.getToplevel()
 
 var running = true
-toplevel.onConfigure = proc(width, height: int32) =
+toplevel.onConfigure = proc(width, height: int32, states: set[State]) =
   discard
 toplevel.onClose = proc() =
   running = false

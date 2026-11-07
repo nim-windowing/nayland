@@ -122,3 +122,11 @@ func shallowCopyArray*[T](arr: ptr wl_array, typ: typedesc[T]): seq[T] =
   copyMem(dest[0].addr, arr, arr.size)
 
   dest
+
+func toSet*[T: SomeOrdinal](arr: ptr wl_array, typ: typedesc[T]): set[T] =
+  var members: set[T]
+
+  for i in 0'u64 ..< arr.size:
+    members.incl(cast[ptr UncheckedArray[T]](arr.data)[i])
+
+  ensureMove(members)

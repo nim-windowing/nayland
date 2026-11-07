@@ -49,7 +49,8 @@ let listener = wl_keyboard_listener(
   ) {.cdecl.} =
     let payload = cast[ptr KeyboardCallbacksObj](data)
     if payload.keymapCb != nil:
-      payload.keymapCb(payload.keyb, fmt, fd, size),
+      payload.keymapCb(payload.keyb, fmt, fd, size)
+  ,
   enter: proc(
       data: pointer,
       keyb: ptr wl_keyboard,
@@ -63,15 +64,17 @@ let listener = wl_keyboard_listener(
       var keysBuff = newSeq[uint32](numKeys)
 
       if numKeys > 0:
-        copyMem(keysBuff[0].addr, cast[ptr uint32](keys), numKeys)
+        copyMem(keysBuff[0].addr, cast[ptr uint32](keys.data), keys.size)
 
-      payload.enterCb(payload.keyb, serial, newSurface(surf), ensureMove(keysBuff)),
+      payload.enterCb(payload.keyb, serial, newSurface(surf), ensureMove(keysBuff))
+  ,
   leave: proc(
       data: pointer, keyb: ptr wl_keyboard, serial: uint32, surf: ptr wl_surface
   ) {.cdecl.} =
     let payload = cast[ptr KeyboardCallbacksObj](data)
     if payload.leaveCb != nil:
-      payload.leaveCb(payload.keyb, serial, newSurface(surf)),
+      payload.leaveCb(payload.keyb, serial, newSurface(surf))
+  ,
   key: proc(
       data: pointer,
       keyb: ptr wl_keyboard,
@@ -82,7 +85,8 @@ let listener = wl_keyboard_listener(
   ) {.cdecl.} =
     let payload = cast[ptr KeyboardCallbacksObj](data)
     if payload.keyCb != nil:
-      payload.keyCb(payload.keyb, serial, time, key, state),
+      payload.keyCb(payload.keyb, serial, time, key, state)
+  ,
   modifiers: proc(
       data: pointer,
       keyb: ptr wl_keyboard,
@@ -96,11 +100,13 @@ let listener = wl_keyboard_listener(
     if payload.modifiersCb != nil:
       payload.modifiersCb(
         payload.keyb, serial, modsDepressed, modsLatched, modsLocked, group
-      ),
+      )
+  ,
   repeatInfo: proc(data: pointer, keyb: ptr wl_keyboard, rate, delay: int32) {.cdecl.} =
     let payload = cast[ptr KeyboardCallbacksObj](data)
     if payload.repeatInfoCb != nil:
-      payload.repeatInfoCb(payload.keyb, rate, delay),
+      payload.repeatInfoCb(payload.keyb, rate, delay)
+  ,
 )
 
 proc release*(keyb: Keyboard) =
@@ -132,4 +138,3 @@ proc attachCallbacks*(keyb: Keyboard) =
 
 func newKeyboard*(handle: ptr wl_keyboard): Keyboard =
   Keyboard(handle: handle, callbacks: KeyboardCallbacks())
-
