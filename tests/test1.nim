@@ -199,7 +199,7 @@ roundtrip disp
 toplevel.title = "Hello Nayland!"
 toplevel.appId = "xyz.xtrayambak.nayland"
 
-toplevel.onConfigure = proc(width, height: int32, states: seq[State]) =
+toplevel.onConfigure = proc(width, height: int32, states: set[State]) =
   echo "Configure XDGToplevel; width=" & $width & ", height=" & $height & ", states=" &
     $states
 
