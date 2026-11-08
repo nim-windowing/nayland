@@ -119,6 +119,9 @@ iterator items*[T](arr: ptr wl_array): T =
 
 func shallowCopyArray*[T](arr: ptr wl_array, typ: typedesc[T]): seq[T] =
   let dest = newSeq[T](arr.size)
+  if arr.size == 0'u64:
+    return dest
+
   copyMem(dest[0].addr, arr, arr.size)
 
   dest
